@@ -88,6 +88,11 @@
         .tile-icon { width: 30px; height: 30px; margin-bottom: 2px; }
         .tile-name { font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 700; }
         .tile-val { font-size: 12px; opacity: 0.7; }
+        .tile-pop { animation: tilePop 0.18s ease-out; }
+        .tile-merged { animation: tileMerge 0.18s ease-out; }
+        .tile-locked { opacity: 0.55; filter: grayscale(0.6); }
+        @keyframes tilePop { from { transform: scale(0.3); opacity: 0.3; } to { transform: scale(1); opacity: 1; } }
+        @keyframes tileMerge { 0% { transform: scale(1); } 45% { transform: scale(1.18); } 100% { transform: scale(1); } }
 
         /* Карточка найденного лота */
         .listing-card {
@@ -134,6 +139,7 @@
             <button class="btn-neon" onclick="startGame('catcher')">📡 ЛОВЕЦ МАРЖИ</button>
             <button class="btn-neon btn-secondary" onclick="startGame('runner')">🏃 СКАН-РАННЕР</button>
             <button class="btn-neon btn-secondary" onclick="startGame('2048')">💎 RESALE 2048</button>
+            <button class="btn-neon" onclick="startGame('doodle')">🚀 ПРАЙС-ПРЫГУН</button>
         </div>
     </div>
 
@@ -240,16 +246,23 @@
     let lastTime = 0, spawnTimer = 0, gameReq, timeInt, invulnerableTimer = 0;
     let bgOffset = 0, playerX = width / 2;
     let items = [], particles = [], floatTexts = [], bonuses = [];
-    let runnerY = 0, runnerVy = 0, groundY = 0;
-    let board2048 = [];
+    let runnerY = 0, runnerVy = 0, groundY = 0, runnerJumpsUsed = 0, runnerSquash = 1;
+    let board2048 = [], lockedUsed2048 = false;
+    let doodleY = 0, doodleVy = 0, doodleX = 0, doodlePlatforms = [], doodleHeight = 0, doodleBestY = 0, doodleTilt = 0;
+    let gameElapsed = 0; // секунды с начала текущего забега — общий множитель сложности
+    function difficultyMult() { return Math.min(1 + gameElapsed / 35, 2.6); } // за ~90с сложность растёт до x2.6
 
     // Управление
     const moveHandler = (e) => { playerX = (e.touches ? e.touches[0].clientX : e.clientX); };
     window.addEventListener('touchmove', moveHandler, {passive: true});
     window.addEventListener('mousemove', moveHandler);
 
-    const jumpHandler = () => { 
-        if (currentGame === 'runner' && runnerY >= groundY - 6) { runnerVy = -16; playSynth('jump'); }
+    const jumpHandler = () => {
+        if (currentGame !== 'runner') return;
+        if (runnerJumpsUsed < 2) {
+            runnerVy = runnerJumpsUsed === 0 ? -16 : -13; // второй прыжок чуть слабее — так честнее
+            runnerJumpsUsed++; runnerSquash = 1.3; playSynth('jump');
+        }
     };
     window.addEventListener('touchstart', jumpHandler, {passive: true});
     window.addEventListener('mousedown', jumpHandler);
@@ -313,7 +326,7 @@
         document.getElementById('hud').style.display = 'flex';
         
         isPlaying = true; score = 0; bonusCoins = 0; items = []; bonuses = []; particles = []; floatTexts = [];
-        lastTime = performance.now();
+        lastTime = performance.now(); gameElapsed = 0; lockedUsed2048 = false;
 
         if (type === 'catcher') {
             lives = 5; timeLeft = 120; invulnerableTimer = 0;
@@ -331,6 +344,17 @@
             canvas.style.display = 'block'; grid2048.style.display = 'none';
             gameReq = requestAnimationFrame(loopRunner);
         }
+        else if (type === 'doodle') {
+            timeLeft = 0; doodleHeight = 0; doodleBestY = 0;
+            doodleX = width / 2; doodleY = height - 150; doodleVy = -14;
+            doodlePlatforms = [{x: width/2 - 35, y: height - 80, w: 70, type: 'normal'}];
+            for (let i = 1; i < 9; i++) doodlePlatforms.push(genDoodlePlatform(height - 80 - i * 90));
+            document.getElementById('ui-time-box').style.display = 'none';
+            document.getElementById('ui-lives-box').style.display = 'none';
+            document.getElementById('btn-ingame-exit').style.display = 'block';
+            canvas.style.display = 'block'; grid2048.style.display = 'none';
+            gameReq = requestAnimationFrame(loopDoodle);
+        }
         else if (type === '2048') {
             document.getElementById('ui-time-box').style.display = 'none';
             document.getElementById('ui-lives-box').style.display = 'none';
@@ -341,7 +365,7 @@
         
         updateHud();
         
-        if (type !== '2048') {
+        if (type !== '2048' && type !== 'doodle') {
             timeInt = setInterval(() => {
                 if(!isPlaying) return;
                 timeLeft--; updateHud();
@@ -360,6 +384,7 @@
         if (gameType === 'catcher') return Math.floor(score / 500); 
         if (gameType === 'runner') return Math.floor(score / 150); 
         if (gameType === '2048') return Math.floor(score / 200); 
+        if (gameType === 'doodle') return Math.floor(score / 250);
         return 0;
     }
 
@@ -371,7 +396,7 @@
         document.getElementById('btn-ingame-exit').style.display = 'none';
         document.getElementById('screen-gameover').classList.add('active');
         
-        bonusCoins = calculateCoins(score, currentGame);
+        bonusCoins = (currentGame === 'doodle' ? bonusCoins : 0) + calculateCoins(score, currentGame);
         document.getElementById('final-score').innerText = score;
         document.getElementById('final-coins').innerText = bonusCoins;
 
@@ -432,16 +457,22 @@
     function loopCatcher(time) {
         if(!isPlaying) return;
         let dt = (time - lastTime) / 1000; lastTime = time; if(dt > 0.1) dt = 0.1;
+        gameElapsed += dt;
+        let diff = difficultyMult();
         if (invulnerableTimer > 0) invulnerableTimer -= dt;
 
         ctx.clearRect(0, 0, width, height); drawBackground();
 
         spawnTimer += dt;
-        if(spawnTimer > 0.65) {
-            spawnTimer = 0; let isGood = Math.random() > 0.3;
+        let spawnInterval = Math.max(0.65 / diff, 0.28); // со временем сыплется всё чаще
+        if(spawnTimer > spawnInterval) {
+            spawnTimer = 0;
+            // Со временем растёт и доля "плохих" объявлений — раньше их легко
+            // отличить, к финалу приходится быть внимательнее.
+            let isGood = Math.random() > Math.min(0.3 + gameElapsed / 400, 0.5);
             items.push({
                 x: Math.random() * (width - 60) + 30, y: -50, isGood, color: isGood ? '#00ff88' : '#ff3366',
-                speed: Math.random() * 120 + 220, angle: (Math.random() - 0.5), rotSpeed: (Math.random() - 0.5) * 2
+                speed: (Math.random() * 120 + 220) * diff, angle: (Math.random() - 0.5), rotSpeed: (Math.random() - 0.5) * 2
             });
         }
 
@@ -481,8 +512,8 @@
     }
 
     // --- СКАН-РАННЕР ---
-    function drawDrone(x, y) {
-        ctx.save(); ctx.translate(x, y);
+    function drawDrone(x, y, squash) {
+        ctx.save(); ctx.translate(x, y); ctx.scale(1 / (squash || 1), squash || 1);
         ctx.shadowBlur = 15; ctx.shadowColor = '#00ccff'; ctx.fillStyle = '#00ccff';
         ctx.beginPath(); ctx.moveTo(-18, 5); ctx.lineTo(-28 - Math.random() * 8, 8); ctx.lineTo(-18, 11); ctx.fill();
         ctx.shadowColor = '#00ff88'; ctx.fillStyle = '#0f1f2e'; ctx.strokeStyle = '#00ff88'; ctx.lineWidth = 2;
@@ -495,22 +526,39 @@
     function loopRunner(time) {
         if(!isPlaying) return;
         let dt = (time - lastTime) / 1000; lastTime = time; if(dt > 0.1) dt = 0.1;
-        
+        gameElapsed += dt;
+        let diff = difficultyMult(); // растёт со временем забега — быстрее спавн, выше скорость
+
         ctx.clearRect(0, 0, width, height); drawBackground();
         ctx.strokeStyle = '#00ccff'; ctx.lineWidth = 3; ctx.shadowBlur = 12; ctx.shadowColor = '#00ccff';
         ctx.beginPath(); ctx.moveTo(0, groundY + 20); ctx.lineTo(width, groundY + 20); ctx.stroke(); ctx.shadowBlur = 0;
 
         spawnTimer += dt;
-        if(spawnTimer > 1.3) {
+        let spawnInterval = Math.max(1.35 / diff, 0.55); // чем дальше, тем чаще препятствия
+        if(spawnTimer > spawnInterval) {
             spawnTimer = 0;
-            items.push({ x: width + 40, y: groundY - 15, width: 18, height: 35, speed: 280 + (score/30) });
-            if (Math.random() > 0.4) bonuses.push({ x: width + 120, y: groundY - 60, size: 14, speed: 280 + (score/30) });
+            let baseSpeed = (280 + score/30) * diff;
+            // Разнообразие препятствий: обычное (один прыжок), высокое (нужен
+            // двойной прыжок) и низкая арка (надо просто не прыгать вовсе).
+            let kind = Math.random();
+            if (kind < 0.6) {
+                items.push({ x: width + 40, y: groundY - 15, width: 18, height: 35, speed: baseSpeed, kind: 'low' });
+            } else if (kind < 0.85) {
+                items.push({ x: width + 40, y: groundY - 55, width: 18, height: 75, speed: baseSpeed, kind: 'tall' });
+            } else {
+                items.push({ x: width + 40, y: groundY - 100, width: 60, height: 16, speed: baseSpeed, kind: 'arch' });
+            }
+            if (Math.random() > 0.4) bonuses.push({ x: width + 120, y: groundY - 60, size: 14, speed: baseSpeed });
         }
 
-        runnerY += runnerVy; runnerVy += 0.8;
-        if(runnerY > groundY) { runnerY = groundY; runnerVy = 0; }
+        runnerVy += 0.8; runnerY += runnerVy;
+        if(runnerY > groundY) {
+            if (runnerVy > 4 && runnerJumpsUsed > 0) { runnerSquash = 0.72; playSynth('good'); } // мягкая приземляющая отдача
+            runnerY = groundY; runnerVy = 0; runnerJumpsUsed = 0;
+        }
+        runnerSquash += (1 - runnerSquash) * Math.min(dt * 12, 1); // плавное возвращение к нормальной форме
 
-        drawDrone(70, runnerY);
+        drawDrone(70, runnerY, runnerSquash);
 
         for (let i = bonuses.length - 1; i >= 0; i--) {
             let b = bonuses[i]; b.x -= b.speed * dt;
@@ -528,18 +576,25 @@
 
         for (let i = items.length - 1; i >= 0; i--) {
             let o = items[i]; o.x -= o.speed * dt;
-            ctx.shadowBlur = 15; ctx.shadowColor = '#ff3366'; ctx.fillStyle = '#ff3366';
+            ctx.shadowBlur = 15; ctx.shadowColor = o.kind === 'arch' ? '#ffaa00' : '#ff3366';
+            ctx.fillStyle = o.kind === 'arch' ? '#ffaa00' : '#ff3366';
             ctx.beginPath(); ctx.roundRect(o.x, o.y, o.width, o.height, 4); ctx.fill(); ctx.shadowBlur = 0;
             ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1; ctx.stroke();
 
-            if (o.x < 90 && o.x + o.width > 55 && runnerY + 14 > o.y) {
-                playSynth('hit'); shakeScreen(); gameOver(); return;
-            }
+            let hitX = o.x < 90 && o.x + o.width > 55;
+            // Арка — это "потолок": она высоко над землёй, и задеть её можно,
+            // только если прыгнул СЛИШКОМ высоко (двойным прыжком). Просто
+            // стоя на земле её не касаешься вообще — под ней всегда безопасно.
+            let hitY = o.kind === 'arch'
+                ? (runnerY - 16 < o.y + o.height && runnerY + 10 > o.y)
+                : runnerY + 14 > o.y;
+            if (hitX && hitY) { playSynth('hit'); shakeScreen(); gameOver(); return; }
+
             if (o.x < 50 && !o.passed) {
-                o.passed = true; score += 150; updateHud();
-                createFloatingText(70, runnerY - 25, '+150', '#00ff88');
+                o.passed = true; score += o.kind === 'tall' ? 250 : 150; updateHud();
+                createFloatingText(70, runnerY - 25, `+${o.kind === 'tall' ? 250 : 150}`, '#00ff88');
             }
-            if (o.x < -40) items.splice(i, 1);
+            if (o.x < -60) items.splice(i, 1);
         }
 
         updateAndDrawParticles(dt);
@@ -561,6 +616,88 @@
         2048:{n:'Спорткар', c:'rgba(5,5,10,0.95)', tc:'#00ff88', svg:'<path d="M3 14l3-6h12l3 6v3H3v-3z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="7" cy="17" r="2" fill="currentColor"/><circle cx="17" cy="17" r="2" fill="currentColor"/>'}
     };
 
+    // --- ПРАЙС-ПРЫГУН (Doodle Jump) ---
+    function genDoodlePlatform(y) {
+        // Чем больше высота набрана (doodleHeight), тем реже обычные
+        // платформы и больше подвижных/ломающихся — забег усложняется
+        // естественным образом просто за счёт того, что ты выше.
+        let hardness = Math.min(doodleHeight / 4000, 1); // 0 в начале, 1 на большой высоте
+        let r = Math.random();
+        let type = r > 0.92 - hardness * 0.05 ? 'coin'
+            : r > 0.78 - hardness * 0.15 ? 'moving'
+            : r > 0.68 - hardness * 0.10 ? 'break'
+            : 'normal';
+        return { x: Math.random() * (width - 80) + 10, y, w: 64, type, dir: Math.random() > 0.5 ? 1 : -1, broken: false };
+    }
+
+    function drawDoodler(x, y, tilt) {
+        ctx.save(); ctx.translate(x, y); ctx.rotate(tilt * 0.25);
+        ctx.shadowBlur = 14; ctx.shadowColor = '#00ff88'; ctx.fillStyle = '#0f1f2e';
+        ctx.strokeStyle = '#00ff88'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.roundRect(-18, -16, 36, 32, 10); ctx.fill(); ctx.stroke();
+        ctx.shadowBlur = 0; ctx.fillStyle = '#00ff88';
+        ctx.beginPath(); ctx.arc(-7, -3, 4, 0, Math.PI*2); ctx.arc(7, -3, 4, 0, Math.PI*2); ctx.fill();
+        ctx.restore();
+    }
+
+    function loopDoodle(time) {
+        if(!isPlaying) return;
+        let dt = (time - lastTime) / 1000; lastTime = time; if(dt > 0.1) dt = 0.1;
+        ctx.clearRect(0, 0, width, height); drawBackground();
+
+        doodleTilt += ((playerX - doodleX > 0 ? 0.6 : -0.6) - doodleTilt) * 0.2;
+        doodleX += (playerX - doodleX) * 0.18;
+        if (doodleX < -20) doodleX = width + 20; if (doodleX > width + 20) doodleX = -20;
+
+        doodleVy += 0.55; doodleY += doodleVy;
+
+        if (doodleY < height * 0.45 && doodleVy < 0) {
+            let shift = height * 0.45 - doodleY;
+            doodleY = height * 0.45;
+            doodleHeight += shift; score = Math.floor(doodleHeight);
+            for (let p of doodlePlatforms) p.y += shift;
+            updateHud();
+        }
+
+        for (let i = doodlePlatforms.length - 1; i >= 0; i--) {
+            let p = doodlePlatforms[i];
+            if (p.type === 'moving') {
+                let mvSpeed = 60 + Math.min(doodleHeight / 4000, 1) * 50;
+                p.x += p.dir * mvSpeed * dt; if (p.x < 10 || p.x > width - 74) p.dir *= -1;
+            }
+            if (p.y > height + 40) { doodlePlatforms.splice(i, 1); continue; }
+
+            let color = p.type === 'coin' ? '#ffcc00' : (p.type === 'moving' ? '#00ccff' : (p.type === 'break' ? '#ff3366' : '#00ff88'));
+            if (!(p.type === 'break' && p.broken)) {
+                ctx.shadowBlur = 10; ctx.shadowColor = color; ctx.fillStyle = 'rgba(10,15,30,0.85)';
+                ctx.strokeStyle = color; ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.roundRect(p.x, p.y, p.w, 14, 7); ctx.fill(); ctx.stroke(); ctx.shadowBlur = 0;
+            }
+
+            if (doodleVy > 0 && !p.broken && doodleX > p.x - 10 && doodleX < p.x + p.w + 10 &&
+                doodleY + 16 > p.y && doodleY + 16 < p.y + 20) {
+                if (p.type === 'break') { p.broken = true; playSynth('hit'); }
+                else {
+                    doodleVy = p.type === 'coin' ? -19 : -15.5; playSynth('jump');
+                    if (p.type === 'coin') { bonusCoins += 1; createFloatingText(doodleX, doodleY, '+coin', '#ffcc00'); }
+                }
+            }
+        }
+
+        while (doodlePlatforms.length < 9) {
+            let topY = Math.min(...doodlePlatforms.map(p => p.y));
+            let hardness = Math.min(doodleHeight / 4000, 1);
+            doodlePlatforms.push(genDoodlePlatform(topY - (70 + Math.random() * (40 + hardness * 35))));
+        }
+
+        drawDoodler(doodleX, doodleY, doodleTilt);
+        updateAndDrawParticles(dt);
+
+        if (doodleY > height + 60) { playSynth('hit'); gameOver(); return; }
+
+        gameReq = requestAnimationFrame(loopDoodle);
+    }
+
     function init2048() {
         board2048 = Array(16).fill(0);
         add2048(); add2048(); draw2048();
@@ -580,15 +717,25 @@
         };
     }
 
+    let lastNewIdx = -1;
+
     function add2048() {
         let empty = board2048.map((v,i)=>v===0?i:null).filter(v=>v!==null);
-        if(empty.length > 0) board2048[empty[Math.floor(Math.random()*empty.length)]] = Math.random()>0.1?2:4;
+        if(empty.length === 0) { lastNewIdx = -1; return; }
+        // Со временем (по счёту) шанс невыгодной "четвёрки" вместо "двойки"
+        // растёт — под конец забега сложнее держать доску расчищенной.
+        let fourChance = Math.min(0.1 + score / 40000, 0.35);
+        let idx = empty[Math.floor(Math.random()*empty.length)];
+        board2048[idx] = Math.random() > fourChance ? 2 : 4;
+        lastNewIdx = idx;
     }
 
-    function draw2048() {
+    function draw2048(mergedIdxs) {
         grid2048.innerHTML = '';
-        board2048.forEach(v => {
+        board2048.forEach((v, i) => {
             let d = document.createElement('div'); d.className = 'tile';
+            if (i === lastNewIdx) d.className += ' tile-pop';
+            else if (mergedIdxs && mergedIdxs.has(i)) d.className += ' tile-merged';
             if(v > 0) {
                 let conf = tMap[v] || {n:'MAX', c:'#0f1a26', tc:'#00ff88', svg:''};
                 d.style.background = conf.c; d.style.border = `1px solid ${conf.tc}`; d.style.boxShadow = `0 0 12px ${conf.tc}30`;
@@ -602,33 +749,46 @@
 
     function move2048(dir) {
         let old = [...board2048]; let mergedAny = false;
+        let mergedFinalIdxs = new Set();
         for(let i=0; i<4; i++) {
             let row = [];
             if(dir==='L') row = [board2048[i*4], board2048[i*4+1], board2048[i*4+2], board2048[i*4+3]];
             if(dir==='R') row = [board2048[i*4+3], board2048[i*4+2], board2048[i*4+1], board2048[i*4]];
             if(dir==='U') row = [board2048[i], board2048[i+4], board2048[i+8], board2048[i+12]];
             if(dir==='D') row = [board2048[i+12], board2048[i+8], board2048[i+4], board2048[i]];
-            
+
             let arr = row.filter(v=>v);
+            let mergedFlags = arr.map(()=>false);
             for(let j=0; j<arr.length-1; j++) {
-                if(arr[j] === arr[j+1]) { 
-                    arr[j]*=2; arr[j+1]=0; 
-                    score += arr[j]*15; 
+                if(arr[j] === arr[j+1]) {
+                    arr[j]*=2; arr[j+1]=0; mergedFlags[j]=true; mergedFlags[j+1]=false;
+                    score += arr[j]*15;
                     mergedAny = true;
                 }
             }
-            arr = arr.filter(v=>v); while(arr.length<4) arr.push(0);
-            row = arr;
+            // Компактим значения и флаги синхронно, чтобы не потерять,
+            // какая именно плитка после слияния куда встала.
+            let compactVals = [], compactFlags = [];
+            for (let j = 0; j < arr.length; j++) if (arr[j] !== 0) { compactVals.push(arr[j]); compactFlags.push(mergedFlags[j]); }
+            while (compactVals.length < 4) { compactVals.push(0); compactFlags.push(false); }
+            row = compactVals;
 
-            if(dir==='L') for(let j=0;j<4;j++) board2048[i*4+j] = row[j];
-            if(dir==='R') for(let j=0;j<4;j++) board2048[i*4+3-j] = row[j];
-            if(dir==='U') for(let j=0;j<4;j++) board2048[i+j*4] = row[j];
-            if(dir==='D') for(let j=0;j<4;j++) board2048[i+(3-j)*4] = row[j];
+            for (let j = 0; j < 4; j++) {
+                let boardIdx;
+                if(dir==='L') boardIdx = i*4+j;
+                if(dir==='R') boardIdx = i*4+3-j;
+                if(dir==='U') boardIdx = i+j*4;
+                if(dir==='D') boardIdx = i+(3-j)*4;
+                board2048[boardIdx] = row[j];
+                if (compactFlags[j]) mergedFinalIdxs.add(boardIdx);
+            }
         }
 
         if (mergedAny) playSynth('merge');
-        if(JSON.stringify(old) !== JSON.stringify(board2048)) { add2048(); draw2048(); updateHud(); }
-        
+        if(JSON.stringify(old) !== JSON.stringify(board2048)) {
+            add2048(); draw2048(mergedFinalIdxs); updateHud();
+        }
+
         if(!board2048.includes(0)) {
             let moves = false;
             for(let i=0;i<4;i++) for(let j=0;j<3;j++) {
