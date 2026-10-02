@@ -53,6 +53,21 @@
         .btn-secondary:active { background: #00ccff; color: #05050A; }
         .btn-exit { border-color: #ff3366; color: #ff3366; margin-top: 15px; }
         .btn-exit:active { background: #ff3366; color: #05050A; }
+        .menu-icon { width: 22px; height: 22px; flex-shrink: 0; filter: drop-shadow(0 0 4px currentColor); }
+        .btn-neon:active .menu-icon { filter: none; }
+        #combo-toast {
+            position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%) scale(0.6);
+            font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 26px; color: #ffcc00;
+            text-shadow: 0 0 16px rgba(255,204,0,0.8); pointer-events: none; opacity: 0; z-index: 8;
+            transition: none;
+        }
+        #combo-toast.pop { animation: comboPop 0.7s ease-out forwards; }
+        @keyframes comboPop {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+            25% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); }
+            40% { transform: translate(-50%, -50%) scale(1); }
+            100% { opacity: 0; transform: translate(-50%, -60%) scale(1); }
+        }
 
         /* HUD */
         #hud {
@@ -72,27 +87,31 @@
         .shake { transform: translate(6px, 6px) rotate(1deg); }
         .shake2 { transform: translate(-6px, -6px) rotate(-1deg); }
 
-        /* Сетка 2048 */
+        /* Сетка 2048: плитки — абсолютные слои, двигаются через transform.
+           Так они плавно СКОЛЬЗЯТ к краю, а не телепортируются (раньше
+           доска перерисовывалась целиком на каждом ходу). */
         #grid-2048 {
-            display: none; grid-template-columns: repeat(4, 1fr); gap: 10px;
-            width: 88vw; max-width: 370px; height: 88vw; max-height: 370px;
-            margin: auto; position: absolute; top: 48%; left: 50%;
+            display: none; position: absolute; top: 48%; left: 50%;
             transform: translate(-50%, -50%); z-index: 4;
-            padding: 10px; border-radius: 16px;
+            width: 88vw; max-width: 370px; height: 88vw; max-height: 370px;
+            border-radius: 16px;
         }
+        .cell-bg { position: absolute; border-radius: 10px; background: rgba(255,255,255,0.04);
+                   border: 1px solid rgba(255,255,255,0.05); }
         .tile {
-            border-radius: 10px; display: flex; flex-direction: column;
-            align-items: center; justify-content: center; font-family: 'Orbitron', sans-serif;
-            color: #fff; transition: transform 0.12s ease-out; position: relative;
+            position: absolute; left: 0; top: 0; border-radius: 10px;
+            color: #fff; will-change: transform; font-family: 'Orbitron', sans-serif;
+            transition: transform 0.12s cubic-bezier(.2,.7,.3,1);
         }
+        .tile-inner { width: 100%; height: 100%; border-radius: 10px; display: flex; flex-direction: column;
+                      align-items: center; justify-content: center; }
         .tile-icon { width: 30px; height: 30px; margin-bottom: 2px; }
         .tile-name { font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 700; }
         .tile-val { font-size: 12px; opacity: 0.7; }
-        .tile-pop { animation: tilePop 0.18s ease-out; }
-        .tile-merged { animation: tileMerge 0.18s ease-out; }
-        .tile-locked { opacity: 0.55; filter: grayscale(0.6); }
-        @keyframes tilePop { from { transform: scale(0.3); opacity: 0.3; } to { transform: scale(1); opacity: 1; } }
-        @keyframes tileMerge { 0% { transform: scale(1); } 45% { transform: scale(1.18); } 100% { transform: scale(1); } }
+        .tile-pop .tile-inner { animation: tilePop 0.2s cubic-bezier(.2,.9,.3,1.3) both; }
+        .tile-merged .tile-inner { animation: tileMerge 0.22s ease-out; }
+        @keyframes tilePop { from { transform: scale(0.2); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        @keyframes tileMerge { 0% { transform: scale(1); } 40% { transform: scale(1.22); filter: brightness(1.5); } 100% { transform: scale(1); } }
 
         /* Карточка найденного лота */
         .listing-card {
@@ -135,11 +154,53 @@
     <div id="screen-menu" class="screen">
         <div class="glass-panel menu-box">
             <h1>AVITO RADAR</h1>
-            <p>Нейросеть сканирует объявления. Зарабатывай коины, чтобы ускорить свою позицию в очереди.</p>
-            <button class="btn-neon" onclick="startGame('catcher')">📡 ЛОВЕЦ МАРЖИ</button>
-            <button class="btn-neon btn-secondary" onclick="startGame('runner')">🏃 СКАН-РАННЕР</button>
-            <button class="btn-neon btn-secondary" onclick="startGame('2048')">💎 RESALE 2048</button>
-            <button class="btn-neon" onclick="startGame('doodle')">🚀 ПРАЙС-ПРЫГУН</button>
+            <p>Пока бот ищет — играй и зарабатывай токены на поиски.</p>
+            <button class="btn-neon" onclick="startGame('arrows')">
+                <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 19v-6h7V6h6"/><path d="M16 3l4 3-4 3"/>
+                </svg> ЗМЕЙКИ
+            </button>
+            <button class="btn-neon btn-secondary" onclick="startGame('2048')">
+                <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/>
+                    <rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5" fill="currentColor" fill-opacity="0.25"/>
+                </svg> RESALE 2048
+            </button>
+            <button class="btn-neon" onclick="startGame('doodle')">
+                <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path d="M12 3l2.5 5 5.5.8-4 3.9.9 5.5L12 15.8 7.1 18.2l.9-5.5-4-3.9 5.5-.8z" stroke-linejoin="round"/>
+                </svg> ПРАЙС-ПРЫГУН
+            </button>
+            <button class="btn-neon btn-secondary" onclick="openProfile()">
+                <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6" stroke-linecap="round"/>
+                </svg> ПРОФИЛЬ
+            </button>
+        </div>
+    </div>
+
+    <!-- Экран профиля: аватар/имя бота, токены, уровень, история поисков -->
+    <div id="screen-profile" class="screen">
+        <div class="glass-panel menu-box" style="border-top-color:#00ff88;">
+            <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
+                <img id="pf-avatar" src="" alt="" style="width:56px; height:56px; border-radius:50%; border:2px solid #00ff88; object-fit:cover; background:#0a0f1e;"
+                     onerror="this.style.display='none'">
+                <div style="text-align:left;">
+                    <div id="pf-name" style="font-family:'Orbitron'; font-weight:bold; color:#e6f1ff; font-size:16px;">ItemFinder</div>
+                    <div id="pf-level-title" style="color:#00ff88; font-size:12px;">Уровень 1</div>
+                </div>
+            </div>
+            <div style="display:flex; justify-content:space-around; margin-bottom:14px;">
+                <div><div style="font-family:'Orbitron'; font-size:20px; color:#00ff88;" id="pf-tokens">0</div>
+                     <div style="font-size:11px; color:#8892b0;">🪙 токенов</div></div>
+                <div><div style="font-family:'Orbitron'; font-size:20px; color:#00ccff;" id="pf-searches">0</div>
+                     <div style="font-size:11px; color:#8892b0;">🔍 поисков</div></div>
+                <div><div style="font-family:'Orbitron'; font-size:20px; color:#e6f1ff;" id="pf-level">1</div>
+                     <div style="font-size:11px; color:#8892b0;">⭐ уровень</div></div>
+            </div>
+            <div style="text-align:left; font-size:12px; color:#8892b0; margin-bottom:6px;">Последние поиски:</div>
+            <div id="pf-history" style="text-align:left; max-height:160px; overflow-y:auto; font-size:12px; color:#aab;"></div>
+            <button class="btn-neon" style="margin-top:16px;" onclick="closeProfile()">← В МЕНЮ</button>
         </div>
     </div>
 
@@ -172,12 +233,27 @@
     <div id="game-container">
         <div id="hud" class="glass-panel">
             <div class="hud-stat"><span class="hud-label">ОЧКИ</span><span class="hud-val" id="val-score">0</span></div>
-            <div class="hud-stat" id="ui-time-box"><span class="hud-label">ТАЙМЕР</span><span class="hud-val" id="val-time">120</span></div>
-            <div class="hud-stat" id="ui-lives-box"><span class="hud-label">СИГНАЛ</span><span class="hud-val" id="val-lives">|||||</span></div>
+            <div class="hud-stat" id="ui-time-box"><span class="hud-label">УРОВЕНЬ</span><span class="hud-val" id="val-time">120</span></div>
+            <div class="hud-stat" id="ui-lives-box"><span class="hud-label">ЖИЗНИ</span><span class="hud-val" id="val-lives">|||||</span></div>
         </div>
         <canvas id="gameCanvas"></canvas>
         <div id="grid-2048" class="glass-panel"></div>
+        <div id="combo-toast"></div>
         <button id="btn-ingame-exit" class="btn-neon btn-exit" style="display:none; position:absolute; bottom:18px; left:50%; transform:translateX(-50%); width: 85%; max-width:340px; z-index:10;" onclick="gameOver()">ЗАВЕРШИТЬ СЕССИЮ</button>
+    </div>
+
+    <!-- Нижняя панель: баланс токенов + уровень игрока (XP). Видна в меню и
+         профиле, прячется во время самой игры, чтобы не мешать. -->
+    <div id="bottom-bar" style="display:none; position:fixed; left:0; right:0; bottom:0; z-index:40;
+         padding:8px 14px; background:rgba(8,10,20,0.92); backdrop-filter:blur(8px);
+         border-top:1px solid rgba(0,255,136,0.25); font-family:'Orbitron',sans-serif;">
+        <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; color:#e6f1ff;">
+            <span>🪙 <b id="bar-tokens" style="color:#00ff88;">0</b></span>
+            <span>⭐ ур. <b id="bar-level" style="color:#00ccff;">1</b></span>
+        </div>
+        <div style="height:6px; border-radius:4px; background:rgba(255,255,255,0.08); margin-top:5px; overflow:hidden;">
+            <div id="bar-xp" style="height:100%; width:0%; background:linear-gradient(90deg,#00ff88,#00ccff); transition:width .4s;"></div>
+        </div>
     </div>
 
 <script>
@@ -185,6 +261,72 @@
     let tg = window.Telegram ? window.Telegram.WebApp : null;
     let isTgEnv = tg && tg.initData !== "";
     if (isTgEnv) { tg.expand(); tg.ready(); }
+
+    // ===== ПРОФИЛЬ ИГРОКА (данные прокидывает бот через параметры URL) =====
+    // Бот открывает WebApp по адресу вида
+    //   .../avito_radar_hub.html?tokens=1234&name=ItemFinder&avatar=...&searches=42&xp=5600&history=<url-encoded JSON>
+    // Всё опционально: если параметра нет — берём значение по умолчанию,
+    // поэтому игра открывается и вне Telegram (для теста) без ошибок.
+    const _params = new URLSearchParams(location.search);
+    // Telegram может продублировать данные в start_param (startapp) — на будущее.
+    function _num(v, d) { const n = parseInt(v, 10); return isNaN(n) ? d : n; }
+    const profile = {
+        tokens: _num(_params.get('tokens'), 0),
+        name: _params.get('name') || 'ItemFinder',
+        avatar: _params.get('avatar') || '',
+        searches: _num(_params.get('searches'), 0),
+        xp: _num(_params.get('xp'), 0),   // всего заработано коинов за всё время (не падает)
+        history: []
+    };
+    try {
+        const h = _params.get('history');
+        if (h) profile.history = JSON.parse(decodeURIComponent(h));
+    } catch (e) { profile.history = []; }
+
+    // Уровень игрока: чтобы перейти с уровня L на L+1, нужно 100*L коинов
+    // суммарно сверх начала уровня. Кривая мягкая на старте, дальше растёт.
+    function levelFromXp(xp) {
+        let level = 1, need = 100, acc = 0;
+        while (xp >= acc + need) { acc += need; level++; need = 100 * level; }
+        return { level, curXp: xp - acc, needXp: need, pct: Math.round((xp - acc) / need * 100) };
+    }
+
+    function renderBottomBar() {
+        const li = levelFromXp(profile.xp);
+        document.getElementById('bar-tokens').innerText = profile.tokens;
+        document.getElementById('bar-level').innerText = li.level;
+        document.getElementById('bar-xp').style.width = Math.min(100, li.pct) + '%';
+    }
+    function showBottomBar(show) {
+        document.getElementById('bottom-bar').style.display = show ? 'block' : 'none';
+    }
+
+    function openProfile() {
+        const li = levelFromXp(profile.xp);
+        document.getElementById('pf-name').innerText = profile.name;
+        document.getElementById('pf-level-title').innerText = 'Уровень ' + li.level;
+        document.getElementById('pf-tokens').innerText = profile.tokens;
+        document.getElementById('pf-searches').innerText = profile.searches;
+        document.getElementById('pf-level').innerText = li.level;
+        const av = document.getElementById('pf-avatar');
+        if (profile.avatar) { av.src = profile.avatar; av.style.display = 'block'; }
+        else { av.style.display = 'none'; }
+        const hist = document.getElementById('pf-history');
+        if (profile.history.length) {
+            hist.innerHTML = profile.history.map(function(s) {
+                return '<div style="padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.06);">🔍 ' +
+                    String(s).replace(/</g, '&lt;') + '</div>';
+            }).join('');
+        } else {
+            hist.innerHTML = '<div style="color:#556;">История пуста — сделай первый поиск в боте.</div>';
+        }
+        document.getElementById('screen-menu').classList.remove('active');
+        document.getElementById('screen-profile').classList.add('active');
+    }
+    function closeProfile() {
+        document.getElementById('screen-profile').classList.remove('active');
+        document.getElementById('screen-menu').classList.add('active');
+    }
 
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
@@ -199,7 +341,9 @@
         canvas.height = height * dpr;
         canvas.style.width = width + 'px';
         canvas.style.height = height + 'px';
-        ctx.scale(dpr, dpr);
+        // setTransform, а не scale: scale умножается на предыдущий, и после
+        // каждого поворота экрана картинка становилась всё крупнее и уезжала.
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
     window.addEventListener('resize', resize); resize();
 
@@ -246,26 +390,66 @@
     let lastTime = 0, spawnTimer = 0, gameReq, timeInt, invulnerableTimer = 0;
     let bgOffset = 0, playerX = width / 2;
     let items = [], particles = [], floatTexts = [], bonuses = [];
-    let runnerY = 0, runnerVy = 0, groundY = 0, runnerJumpsUsed = 0, runnerSquash = 1;
     let board2048 = [], lockedUsed2048 = false;
     let doodleY = 0, doodleVy = 0, doodleX = 0, doodlePlatforms = [], doodleHeight = 0, doodleBestY = 0, doodleTilt = 0;
+    let doodleSquash = 1; // 1 = обычная форма, <1 = приплющен при отскоке
     let gameElapsed = 0; // секунды с начала текущего забега — общий множитель сложности
     function difficultyMult() { return Math.min(1 + gameElapsed / 35, 2.6); } // за ~90с сложность растёт до x2.6
+
+    // --- Комбо-система (общая для всех игр) ---
+    let combo = 0, comboBest = 0, comboFlashUntil = 0;
+    const COMBO_MILESTONES = [3, 5, 8, 12, 18, 25, 35, 50];
+    function bumpCombo(x, y) {
+        combo++;
+        if (combo > comboBest) comboBest = combo;
+        if (COMBO_MILESTONES.includes(combo)) {
+            createFloatingText(x, y, `🔥 КОМБО x${combo}`, '#ffcc00');
+            playSynth('good');
+            if (combo % 10 === 0) { bonusCoins += 1; } // каждые 10 в комбо — бонусная монета сверху
+        }
+    }
+    function resetCombo() { combo = 0; }
+    function showComboToast(text) {
+        let el = document.getElementById('combo-toast');
+        el.textContent = text; el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
+    }
+    function comboMult() { return 1 + Math.min(combo, 20) * 0.04; } // до +80% к очкам на самом длинном комбо
+
+    // --- Прайс-прыгун: джетпак (рюкзак) и пружины ---
+    let doodleJetpackUntil = 0; // timestamp (ms) до которого активен джетпак
+    // --- Физика Прайс-прыгуна (всё в px/с и px/с², не «за кадр») ---
+    // Прыжки сделаны помедленнее и повыше, чем были: гравитация снижена с
+    // 1980 до 1400, скорость с 930 до 820. Высота подъёма даже выросла
+    // (218 -> 240px), но времени в воздухе стало на четверть больше — успеваешь
+    // прицелиться и доехать вбок.
+    const DOODLE_GRAVITY = 1400;
+    const DOODLE_JUMP_NORMAL = -820;
+    const DOODLE_JUMP_COIN = -1005;
+    const DOODLE_JUMP_SPRING = -1430;
+    const DOODLE_JETPACK_VY = -900;
+    const DOODLE_START_VY = -740;
+    // Скорость горизонтального доводчика (чем больше, тем резвее едет вбок).
+    const DOODLE_H_SPEED = 12;
+    // Насколько вбок может уехать следующая платформа от предыдущей.
+    // Считается от ширины экрана, но не больше 170px — при такой дистанции
+    // за время подъёма успеваешь доехать даже на слабом телефоне.
+    const DOODLE_MAX_DX = Math.min(width * 0.42, 170);
+    // Разрыв по вертикали: максимум 150px при досягаемых 240px — запас 90px
+    // на случай, если пришлось гасить скорость об движущуюся платформу.
+    const DOODLE_GAP_MIN = 66;
+    const DOODLE_GAP_MAX = 150;
+
+    const DOODLE_JETPACK_DURATION = 4000;  // мс свободного полёта вверх
+    // Пружинные ботинки: не разовый отскок, а надетый бонус на 10 секунд —
+    // пока активны, КАЖДЫЙ прыжок с платформы вдвое выше обычного.
+    let doodleBootsUntil = 0;
+    const DOODLE_BOOTS_DURATION = 10000;
+    const DOODLE_BOOTS_MULTIPLIER = 1.55;
 
     // Управление
     const moveHandler = (e) => { playerX = (e.touches ? e.touches[0].clientX : e.clientX); };
     window.addEventListener('touchmove', moveHandler, {passive: true});
     window.addEventListener('mousemove', moveHandler);
-
-    const jumpHandler = () => {
-        if (currentGame !== 'runner') return;
-        if (runnerJumpsUsed < 2) {
-            runnerVy = runnerJumpsUsed === 0 ? -16 : -13; // второй прыжок чуть слабее — так честнее
-            runnerJumpsUsed++; runnerSquash = 1.3; playSynth('jump');
-        }
-    };
-    window.addEventListener('touchstart', jumpHandler, {passive: true});
-    window.addEventListener('mousedown', jumpHandler);
 
     // Загрузка
     const bootLogs = [
@@ -299,6 +483,7 @@
                 setTimeout(() => {
                     document.getElementById('screen-loading').classList.remove('active');
                     document.getElementById('screen-menu').classList.add('active');
+                    renderBottomBar(); showBottomBar(true);
                 }, 400);
             }
         }, 110);
@@ -314,41 +499,50 @@
         setTimeout(() => container.classList.remove('shake2'), 100);
     }
 
-    function createParticle(x, y, color) {
-        for(let i=0; i<10; i++) particles.push({ x, y, vx: (Math.random() - 0.5) * 10, vy: (Math.random() - 0.5) * 10, life: 1, color });
+    // Скорости частиц — в px/с (раньше «px за кадр», и на 120 Гц экранах
+    // всё летало вдвое быстрее, а на слабых телефонах дёргалось).
+    function createParticle(x, y, color, count, speed, size) {
+        count = count || 10; speed = speed || 600; size = size || 3;
+        for (let i = 0; i < count; i++) {
+            let a = Math.random() * Math.PI * 2, v = speed * (0.35 + Math.random() * 0.65);
+            particles.push({ x, y, vx: Math.cos(a) * v / 2, vy: Math.sin(a) * v / 2, life: 1, color, size, g: 0 });
+        }
     }
-    function createFloatingText(x, y, text, color) { floatTexts.push({ x, y, text, color, life: 1, vy: -2 }); }
+    // Пыль из-под ног: летит вбок и чуть вверх, быстро тает.
+    function createDust(x, y, color) {
+        for (let i = 0; i < 7; i++) {
+            let side = i % 2 ? 1 : -1;
+            particles.push({ x: x + side * 6, y, vx: side * (60 + Math.random() * 110), vy: -(20 + Math.random() * 60),
+                             life: 0.7, color: color || 'rgba(200,255,230,0.9)', size: 2 + Math.random() * 2, g: 260 });
+        }
+    }
+    function createFloatingText(x, y, text, color) { floatTexts.push({ x, y, text, color, life: 1, vy: -70, scale: 0.6 }); }
 
     function startGame(type) {
         initAudio();
         currentGame = type;
         document.getElementById('screen-menu').classList.remove('active');
+        showBottomBar(false);  // во время игры панель прячем, чтобы не мешала
         document.getElementById('hud').style.display = 'flex';
         
         isPlaying = true; score = 0; bonusCoins = 0; items = []; bonuses = []; particles = []; floatTexts = [];
         lastTime = performance.now(); gameElapsed = 0; lockedUsed2048 = false;
+        combo = 0; comboBest = 0; doodleJetpackUntil = 0; doodleBootsUntil = 0;
 
-        if (type === 'catcher') {
-            lives = 5; timeLeft = 120; invulnerableTimer = 0;
-            document.getElementById('ui-time-box').style.display = 'flex';
-            document.getElementById('ui-lives-box').style.display = 'flex';
-            document.getElementById('btn-ingame-exit').style.display = 'none';
-            canvas.style.display = 'block'; grid2048.style.display = 'none';
-            gameReq = requestAnimationFrame(loopCatcher);
-        } 
-        else if (type === 'runner') {
-            lives = 1; timeLeft = 120; groundY = height - 120; runnerY = groundY; runnerVy = 0;
-            document.getElementById('ui-time-box').style.display = 'flex';
-            document.getElementById('ui-lives-box').style.display = 'none';
-            document.getElementById('btn-ingame-exit').style.display = 'none';
-            canvas.style.display = 'block'; grid2048.style.display = 'none';
-            gameReq = requestAnimationFrame(loopRunner);
+        if (type === 'arrows') {
+            startArrows();
         }
         else if (type === 'doodle') {
             timeLeft = 0; doodleHeight = 0; doodleBestY = 0;
-            doodleX = width / 2; doodleY = height - 150; doodleVy = -14;
+            doodleX = width / 2; doodleY = height - 150; doodleVy = DOODLE_START_VY;
+            doodleSquash = 1;
             doodlePlatforms = [{x: width/2 - 35, y: height - 80, w: 70, type: 'normal'}];
-            for (let i = 1; i < 9; i++) doodlePlatforms.push(genDoodlePlatform(height - 80 - i * 90));
+            // Стартовую лесенку тоже строим цепочкой от предыдущей платформы,
+            // иначе первые же прыжки могут оказаться нечестными.
+            for (let i = 1; i < 9; i++) {
+                let prev = doodlePlatforms[doodlePlatforms.length - 1];
+                doodlePlatforms.push(genDoodlePlatform(prev.y - 88, prev.x));
+            }
             document.getElementById('ui-time-box').style.display = 'none';
             document.getElementById('ui-lives-box').style.display = 'none';
             document.getElementById('btn-ingame-exit').style.display = 'block';
@@ -359,31 +553,25 @@
             document.getElementById('ui-time-box').style.display = 'none';
             document.getElementById('ui-lives-box').style.display = 'none';
             document.getElementById('btn-ingame-exit').style.display = 'block';
-            canvas.style.display = 'none'; grid2048.style.display = 'grid';
+            canvas.style.display = 'none'; grid2048.style.display = 'block';
             init2048();
         }
         
         updateHud();
-        
-        if (type !== '2048' && type !== 'doodle') {
-            timeInt = setInterval(() => {
-                if(!isPlaying) return;
-                timeLeft--; updateHud();
-                if (timeLeft <= 0) gameOver();
-            }, 1000);
-        }
     }
 
     function updateHud() {
         document.getElementById('val-score').innerText = score;
         document.getElementById('val-time').innerText = timeLeft;
-        document.getElementById('val-lives').innerText = '|'.repeat(lives);
+        // Math.max обязателен: String.repeat(-1) бросает RangeError и роняет
+        // весь игровой цикл. Ловится это только так — при отрицательных
+        // жизнях (бомба снимает 2, а оставалась 1) экран просто гас.
+        document.getElementById('val-lives').innerText = '|'.repeat(Math.max(0, lives));
     }
 
     function calculateCoins(score, gameType) {
-        if (gameType === 'catcher') return Math.floor(score / 500); 
-        if (gameType === 'runner') return Math.floor(score / 150); 
-        if (gameType === '2048') return Math.floor(score / 200); 
+        if (gameType === 'arrows') return Math.floor(score / 400);
+        if (gameType === '2048') return Math.floor(score / 200);
         if (gameType === 'doodle') return Math.floor(score / 250);
         return 0;
     }
@@ -395,10 +583,11 @@
         document.getElementById('hud').style.display = 'none';
         document.getElementById('btn-ingame-exit').style.display = 'none';
         document.getElementById('screen-gameover').classList.add('active');
-        
+
         bonusCoins = (currentGame === 'doodle' ? bonusCoins : 0) + calculateCoins(score, currentGame);
         document.getElementById('final-score').innerText = score;
         document.getElementById('final-coins').innerText = bonusCoins;
+        renderBottomBar(); showBottomBar(true);
 
         if (isTgEnv) {
             tg.MainButton.text = `💰 СОХРАНИТЬ ${bonusCoins} КОИНОВ`;
@@ -409,6 +598,13 @@
     }
 
     function finishSession() {
+        // Оптимистично докидываем заработанное в панель, чтобы игрок сразу
+        // увидел рост токенов и уровня. Настоящие значения бот пересчитает и
+        // подставит при следующем открытии игры.
+        profile.tokens += bonusCoins;
+        profile.xp += bonusCoins;
+        renderBottomBar();
+
         const payload = {
             action: "game_result",
             game: currentGame,
@@ -425,8 +621,8 @@
         }
     }
 
-    function drawBackground() {
-        bgOffset = (bgOffset + 2) % 40;
+    function drawBackground(dt) {
+        bgOffset = (bgOffset + 60 * (dt || 1 / 60)) % 40;
         ctx.strokeStyle = 'rgba(0, 255, 136, 0.05)'; ctx.lineWidth = 1; ctx.beginPath();
         for (let x = 0; x < width; x += 40) { ctx.moveTo(x, 0); ctx.lineTo(x, height); }
         for (let y = bgOffset; y < height; y += 40) { ctx.moveTo(0, y); ctx.lineTo(width, y); }
@@ -435,170 +631,27 @@
 
     function updateAndDrawParticles(dt) {
         for (let i = particles.length - 1; i >= 0; i--) {
-            let p = particles[i]; p.x += p.vx; p.y += p.vy; p.life -= dt * 2;
+            let p = particles[i];
+            p.vy += (p.g || 0) * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt * 2;
+            p.vx *= Math.exp(-3 * dt);
             ctx.globalAlpha = Math.max(0, p.life); ctx.fillStyle = p.color;
-            ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(p.x, p.y, (p.size || 3) * (0.5 + Math.max(0, p.life) * 0.5), 0, Math.PI*2); ctx.fill();
             if(p.life <= 0) particles.splice(i, 1);
         }
         ctx.globalAlpha = 1.0;
         
         for (let i = floatTexts.length - 1; i >= 0; i--) {
-            let t = floatTexts[i]; t.y += t.vy; t.life -= dt * 1.5;
-            ctx.globalAlpha = Math.max(0, t.life); ctx.fillStyle = t.color;
+            let t = floatTexts[i]; t.y += t.vy * dt; t.vy *= Math.exp(-2.5 * dt); t.life -= dt * 1.3;
+            // Надпись «выпрыгивает»: быстро растёт до 1.15, потом оседает к 1
+            t.scale += ((t.life > 0.8 ? 1.15 : 1) - t.scale) * (1 - Math.exp(-14 * dt));
+            ctx.globalAlpha = Math.max(0, Math.min(1, t.life * 1.6)); ctx.fillStyle = t.color;
             ctx.shadowBlur = 10; ctx.shadowColor = t.color;
-            ctx.font = 'bold 18px Orbitron'; ctx.textAlign = 'center';
-            ctx.fillText(t.text, t.x, t.y); ctx.shadowBlur = 0;
+            ctx.save(); ctx.translate(t.x, t.y); ctx.scale(t.scale, t.scale);
+            ctx.font = 'bold 18px Orbitron, "Segoe UI", Roboto, Arial, sans-serif'; ctx.textAlign = 'center';
+            ctx.fillText(t.text, 0, 0); ctx.restore(); ctx.shadowBlur = 0;
             if(t.life <= 0) floatTexts.splice(i, 1);
         }
         ctx.globalAlpha = 1.0;
-    }
-
-    // --- ЛОВЕЦ МАРЖИ ---
-    function loopCatcher(time) {
-        if(!isPlaying) return;
-        let dt = (time - lastTime) / 1000; lastTime = time; if(dt > 0.1) dt = 0.1;
-        gameElapsed += dt;
-        let diff = difficultyMult();
-        if (invulnerableTimer > 0) invulnerableTimer -= dt;
-
-        ctx.clearRect(0, 0, width, height); drawBackground();
-
-        spawnTimer += dt;
-        let spawnInterval = Math.max(0.65 / diff, 0.28); // со временем сыплется всё чаще
-        if(spawnTimer > spawnInterval) {
-            spawnTimer = 0;
-            // Со временем растёт и доля "плохих" объявлений — раньше их легко
-            // отличить, к финалу приходится быть внимательнее.
-            let isGood = Math.random() > Math.min(0.3 + gameElapsed / 400, 0.5);
-            items.push({
-                x: Math.random() * (width - 60) + 30, y: -50, isGood, color: isGood ? '#00ff88' : '#ff3366',
-                speed: (Math.random() * 120 + 220) * diff, angle: (Math.random() - 0.5), rotSpeed: (Math.random() - 0.5) * 2
-            });
-        }
-
-        for(let i = items.length - 1; i >= 0; i--) {
-            let it = items[i]; it.y += it.speed * dt; it.angle += it.rotSpeed * dt;
-            
-            ctx.save(); ctx.translate(it.x, it.y); ctx.rotate(it.angle);
-            ctx.shadowBlur = 12; ctx.shadowColor = it.color;
-            ctx.fillStyle = 'rgba(10, 15, 30, 0.9)'; ctx.strokeStyle = it.color; ctx.lineWidth = 2;
-            ctx.beginPath(); ctx.roundRect(-20, -25, 40, 50, 8); ctx.fill(); ctx.stroke();
-            ctx.fillStyle = it.color; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '22px Arial';
-            ctx.shadowBlur = 0; ctx.fillText(it.isGood ? '✔' : '✖', 0, 0); ctx.restore();
-
-            if(it.y > height - 100 && it.y < height - 50 && Math.abs(it.x - playerX) < 55) {
-                if(it.isGood) {
-                    score += 500; playSynth('good');
-                    createParticle(it.x, it.y, '#00ff88'); createFloatingText(it.x, it.y, '+500', '#00ff88');
-                } else {
-                    if (invulnerableTimer <= 0) {
-                        lives--; invulnerableTimer = 1.5; playSynth('hit'); shakeScreen();
-                        createParticle(it.x, it.y, '#ff3366'); createFloatingText(it.x, it.y, 'BLOCK', '#ff3366');
-                    }
-                    if(lives <= 0) { items.splice(i, 1); updateHud(); gameOver(); return; }
-                }
-                items.splice(i, 1); updateHud();
-            } else if(it.y > height + 50) { items.splice(i, 1); }
-        }
-
-        if (!(invulnerableTimer > 0 && Math.floor(Date.now() / 100) % 2 === 0)) {
-            ctx.shadowBlur = 20; ctx.shadowColor = '#00ccff'; ctx.fillStyle = 'rgba(0, 204, 255, 0.85)';
-            ctx.beginPath(); ctx.roundRect(playerX - 50, height - 80, 100, 14, 7); ctx.fill();
-            ctx.fillStyle = '#fff'; ctx.fillRect(playerX - 18, height - 82, 36, 4); ctx.shadowBlur = 0;
-        }
-
-        updateAndDrawParticles(dt);
-        gameReq = requestAnimationFrame(loopCatcher);
-    }
-
-    // --- СКАН-РАННЕР ---
-    function drawDrone(x, y, squash) {
-        ctx.save(); ctx.translate(x, y); ctx.scale(1 / (squash || 1), squash || 1);
-        ctx.shadowBlur = 15; ctx.shadowColor = '#00ccff'; ctx.fillStyle = '#00ccff';
-        ctx.beginPath(); ctx.moveTo(-18, 5); ctx.lineTo(-28 - Math.random() * 8, 8); ctx.lineTo(-18, 11); ctx.fill();
-        ctx.shadowColor = '#00ff88'; ctx.fillStyle = '#0f1f2e'; ctx.strokeStyle = '#00ff88'; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(-16, -10); ctx.lineTo(18, -4); ctx.lineTo(26, 8); ctx.lineTo(-12, 14); ctx.closePath();
-        ctx.fill(); ctx.stroke();
-        ctx.fillStyle = '#00ff88'; ctx.beginPath(); ctx.roundRect(6, -1, 14, 5, 2); ctx.fill();
-        ctx.shadowBlur = 0; ctx.restore();
-    }
-
-    function loopRunner(time) {
-        if(!isPlaying) return;
-        let dt = (time - lastTime) / 1000; lastTime = time; if(dt > 0.1) dt = 0.1;
-        gameElapsed += dt;
-        let diff = difficultyMult(); // растёт со временем забега — быстрее спавн, выше скорость
-
-        ctx.clearRect(0, 0, width, height); drawBackground();
-        ctx.strokeStyle = '#00ccff'; ctx.lineWidth = 3; ctx.shadowBlur = 12; ctx.shadowColor = '#00ccff';
-        ctx.beginPath(); ctx.moveTo(0, groundY + 20); ctx.lineTo(width, groundY + 20); ctx.stroke(); ctx.shadowBlur = 0;
-
-        spawnTimer += dt;
-        let spawnInterval = Math.max(1.35 / diff, 0.55); // чем дальше, тем чаще препятствия
-        if(spawnTimer > spawnInterval) {
-            spawnTimer = 0;
-            let baseSpeed = (280 + score/30) * diff;
-            // Разнообразие препятствий: обычное (один прыжок), высокое (нужен
-            // двойной прыжок) и низкая арка (надо просто не прыгать вовсе).
-            let kind = Math.random();
-            if (kind < 0.6) {
-                items.push({ x: width + 40, y: groundY - 15, width: 18, height: 35, speed: baseSpeed, kind: 'low' });
-            } else if (kind < 0.85) {
-                items.push({ x: width + 40, y: groundY - 55, width: 18, height: 75, speed: baseSpeed, kind: 'tall' });
-            } else {
-                items.push({ x: width + 40, y: groundY - 100, width: 60, height: 16, speed: baseSpeed, kind: 'arch' });
-            }
-            if (Math.random() > 0.4) bonuses.push({ x: width + 120, y: groundY - 60, size: 14, speed: baseSpeed });
-        }
-
-        runnerVy += 0.8; runnerY += runnerVy;
-        if(runnerY > groundY) {
-            if (runnerVy > 4 && runnerJumpsUsed > 0) { runnerSquash = 0.72; playSynth('good'); } // мягкая приземляющая отдача
-            runnerY = groundY; runnerVy = 0; runnerJumpsUsed = 0;
-        }
-        runnerSquash += (1 - runnerSquash) * Math.min(dt * 12, 1); // плавное возвращение к нормальной форме
-
-        drawDrone(70, runnerY, runnerSquash);
-
-        for (let i = bonuses.length - 1; i >= 0; i--) {
-            let b = bonuses[i]; b.x -= b.speed * dt;
-            ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(time / 300);
-            ctx.shadowBlur = 12; ctx.shadowColor = '#ffcc00'; ctx.strokeStyle = '#ffcc00'; ctx.lineWidth = 2;
-            ctx.strokeRect(-b.size/2, -b.size/2, b.size, b.size); ctx.shadowBlur = 0; ctx.restore();
-
-            if (Math.hypot(b.x - 70, b.y - runnerY) < 32) {
-                score += 300; playSynth('good');
-                createParticle(b.x, b.y, '#ffcc00'); createFloatingText(b.x, b.y, '+300', '#ffcc00');
-                bonuses.splice(i, 1); updateHud(); continue;
-            }
-            if (b.x < -30) bonuses.splice(i, 1);
-        }
-
-        for (let i = items.length - 1; i >= 0; i--) {
-            let o = items[i]; o.x -= o.speed * dt;
-            ctx.shadowBlur = 15; ctx.shadowColor = o.kind === 'arch' ? '#ffaa00' : '#ff3366';
-            ctx.fillStyle = o.kind === 'arch' ? '#ffaa00' : '#ff3366';
-            ctx.beginPath(); ctx.roundRect(o.x, o.y, o.width, o.height, 4); ctx.fill(); ctx.shadowBlur = 0;
-            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1; ctx.stroke();
-
-            let hitX = o.x < 90 && o.x + o.width > 55;
-            // Арка — это "потолок": она высоко над землёй, и задеть её можно,
-            // только если прыгнул СЛИШКОМ высоко (двойным прыжком). Просто
-            // стоя на земле её не касаешься вообще — под ней всегда безопасно.
-            let hitY = o.kind === 'arch'
-                ? (runnerY - 16 < o.y + o.height && runnerY + 10 > o.y)
-                : runnerY + 14 > o.y;
-            if (hitX && hitY) { playSynth('hit'); shakeScreen(); gameOver(); return; }
-
-            if (o.x < 50 && !o.passed) {
-                o.passed = true; score += o.kind === 'tall' ? 250 : 150; updateHud();
-                createFloatingText(70, runnerY - 25, `+${o.kind === 'tall' ? 250 : 150}`, '#00ff88');
-            }
-            if (o.x < -60) items.splice(i, 1);
-        }
-
-        updateAndDrawParticles(dt);
-        gameReq = requestAnimationFrame(loopRunner);
     }
 
     // --- RESALE 2048 ---
@@ -617,39 +670,108 @@
     };
 
     // --- ПРАЙС-ПРЫГУН (Doodle Jump) ---
-    function genDoodlePlatform(y) {
+    function genDoodlePlatform(y, prevX) {
         // Чем больше высота набрана (doodleHeight), тем реже обычные
         // платформы и больше подвижных/ломающихся — забег усложняется
         // естественным образом просто за счёт того, что ты выше.
         let hardness = Math.min(doodleHeight / 4000, 1); // 0 в начале, 1 на большой высоте
         let r = Math.random();
-        let type = r > 0.92 - hardness * 0.05 ? 'coin'
-            : r > 0.78 - hardness * 0.15 ? 'moving'
-            : r > 0.68 - hardness * 0.10 ? 'break'
+        // Джетпак — редкий (для интриги), пружина чуть чаще на больших
+        // высотах (компенсирует растущую сложность — забавная награда,
+        // а не только штрафы).
+        let type = r > 0.985 ? 'jetpack'
+            : r > 0.965 ? 'boots'
+            : r > 0.925 - hardness * 0.04 ? 'coin'
+            : r > 0.87 - hardness * 0.06 ? 'spring'
+            : r > 0.73 - hardness * 0.15 ? 'moving'
+            : r > 0.63 - hardness * 0.10 ? 'break'
             : 'normal';
-        return { x: Math.random() * (width - 80) + 10, y, w: 64, type, dir: Math.random() > 0.5 ? 1 : -1, broken: false };
+        // Горизонталь ограничена относительно ПРЕДЫДУЩЕЙ платформы. Раньше x
+        // брался случайно по всей ширине, и две платформы подряд могли
+        // оказаться у противоположных краёв: по высоте допрыгнуть можно, а
+        // долететь вбок за время подъёма — уже нет. Это и было «не допрыгнул».
+        let minX = 10, maxX = width - 74;
+        let base = (prevX === undefined || prevX === null) ? width / 2 : prevX;
+        let x = base + (Math.random() * 2 - 1) * DOODLE_MAX_DX;
+        x = Math.max(minX, Math.min(maxX, x));
+        return { x, y, w: 64, type, dir: Math.random() > 0.5 ? 1 : -1, broken: false };
     }
 
-    function drawDoodler(x, y, tilt) {
+    function drawDoodler(x, y, tilt, jetpackOn, squash, bootsOn) {
         ctx.save(); ctx.translate(x, y); ctx.rotate(tilt * 0.25);
+        // Сжатие/растяжение: при отскоке кубик приплющивается, в полёте
+        // слегка вытягивается. Объём сохраняем (сжали по Y — расширили по X),
+        // иначе выглядит как масштабирование, а не как упругость.
+        let sq = squash || 1;
+        ctx.scale(1 / sq, sq);
         ctx.shadowBlur = 14; ctx.shadowColor = '#00ff88'; ctx.fillStyle = '#0f1f2e';
         ctx.strokeStyle = '#00ff88'; ctx.lineWidth = 2;
         ctx.beginPath(); ctx.roundRect(-18, -16, 36, 32, 10); ctx.fill(); ctx.stroke();
         ctx.shadowBlur = 0; ctx.fillStyle = '#00ff88';
         ctx.beginPath(); ctx.arc(-7, -3, 4, 0, Math.PI*2); ctx.arc(7, -3, 4, 0, Math.PI*2); ctx.fill();
+        if (bootsOn) {
+            // Пружинные ботинки — видно, что они надеты, всё время действия
+            ctx.strokeStyle = '#00ccff'; ctx.lineWidth = 2;
+            ctx.shadowBlur = 8; ctx.shadowColor = '#00ccff';
+            for (let i = 0; i < 3; i++) {
+                let sy = 16 + i * 4;
+                ctx.beginPath(); ctx.moveTo(-12, sy); ctx.lineTo(12, sy); ctx.stroke();
+            }
+            ctx.shadowBlur = 0;
+        }
+        if (jetpackOn) {
+            // Рюкзак-джетпак на спине + пламя снизу, пока активен полёт
+            ctx.fillStyle = '#ff8800'; ctx.shadowBlur = 10; ctx.shadowColor = '#ff8800';
+            ctx.beginPath(); ctx.roundRect(-26, -12, 10, 22, 4); ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(-24, 10); ctx.lineTo(-21, 10 + 10 + Math.random() * 8); ctx.lineTo(-18, 10);
+            ctx.closePath(); ctx.fillStyle = '#ffcc00'; ctx.fill();
+            ctx.shadowBlur = 0;
+        }
         ctx.restore();
+    }
+
+    function drawSpringIcon(x, y, w) {
+        ctx.save(); ctx.strokeStyle = '#00ccff'; ctx.lineWidth = 2; ctx.shadowBlur = 8; ctx.shadowColor = '#00ccff';
+        ctx.beginPath();
+        for (let i = 0; i < 3; i++) { let sy = y - 4 - i * 5; ctx.moveTo(x + 8, sy); ctx.lineTo(x + w - 8, sy); }
+        ctx.stroke(); ctx.shadowBlur = 0; ctx.restore();
     }
 
     function loopDoodle(time) {
         if(!isPlaying) return;
         let dt = (time - lastTime) / 1000; lastTime = time; if(dt > 0.1) dt = 0.1;
-        ctx.clearRect(0, 0, width, height); drawBackground();
+        ctx.clearRect(0, 0, width, height); drawBackground(dt);
 
-        doodleTilt += ((playerX - doodleX > 0 ? 0.6 : -0.6) - doodleTilt) * 0.2;
-        doodleX += (playerX - doodleX) * 0.18;
+        // Горизонталь и наклон — через dt, а не «за кадр». Раньше при
+        // просадке FPS кубик объективно МЕДЛЕННЕЕ ехал вбок и не успевал
+        // долететь до платформы, хотя по высоте прыжка хватало.
+        // Форма 1-exp(-k*dt) — это то же экспоненциальное сглаживание,
+        // но одинаковое на любом фреймрейте.
+        let hLerp = 1 - Math.exp(-DOODLE_H_SPEED * dt);
+        doodleTilt += ((playerX - doodleX > 0 ? 0.6 : -0.6) - doodleTilt) * (1 - Math.exp(-13 * dt));
+        doodleX += (playerX - doodleX) * hLerp;
         if (doodleX < -20) doodleX = width + 20; if (doodleX > width + 20) doodleX = -20;
 
-        doodleVy += 0.55; doodleY += doodleVy;
+        // ВАЖНО: физика здесь считается через dt (реальные секунды), а не
+        // "за кадр" — иначе на слабом телефоне или при просадке FPS игрок
+        // объективно прыгает НИЖЕ (меньше шагов интеграции за то же время
+        // подъёма), и платформа, которая обычно легко досягаема, вдруг
+        // оказывается недостижимой. Числа подобраны так, чтобы при dt~1/60с
+        // давать точно ту же высоту прыжка, что была раньше при 60 FPS —
+        // но теперь одинаковую на любом устройстве.
+        let jetpackOn = performance.now() < doodleJetpackUntil;
+        let bootsOn = performance.now() < doodleBootsUntil;
+        if (jetpackOn) {
+            doodleVy = DOODLE_JETPACK_VY;
+            if (Math.random() < 0.6) createParticle(doodleX - 21, doodleY + 22, Math.random() < 0.5 ? '#ff8800' : '#ffcc00', 2, 260, 3);
+        } else {
+            doodleVy += DOODLE_GRAVITY * dt;
+        }
+        doodleY += doodleVy * dt;
+
+        // Сжатие пружинит обратно к 1 за ~0.15с — заметно, но не мешает.
+        doodleSquash += (1 - doodleSquash) * Math.min(dt * 11, 1);
 
         if (doodleY < height * 0.45 && doodleVy < 0) {
             let shift = height * 0.45 - doodleY;
@@ -667,30 +789,91 @@
             }
             if (p.y > height + 40) { doodlePlatforms.splice(i, 1); continue; }
 
-            let color = p.type === 'coin' ? '#ffcc00' : (p.type === 'moving' ? '#00ccff' : (p.type === 'break' ? '#ff3366' : '#00ff88'));
+            let color = p.type === 'coin' ? '#ffcc00' : p.type === 'moving' ? '#00ccff'
+                : p.type === 'break' ? '#ff3366' : p.type === 'spring' ? '#00ccff'
+                : p.type === 'jetpack' ? '#ff8800' : p.type === 'boots' ? '#00ccff' : '#00ff88';
+            if (p.type === 'break' && p.broken) {
+                // Сломанная платформа не исчезает, а разламывается пополам и
+                // падает, кувыркаясь и тая, — видно, что именно произошло.
+                p.fallVy = (p.fallVy || 0) + DOODLE_GRAVITY * dt;
+                p.fallY = (p.fallY || 0) + p.fallVy * dt;
+                p.rot = (p.rot || 0) + 3.2 * dt;
+                let a = Math.max(0, 1 - p.fallY / 260);
+                if (a > 0) {
+                    ctx.globalAlpha = a; ctx.strokeStyle = color; ctx.fillStyle = 'rgba(10,15,30,0.85)'; ctx.lineWidth = 2;
+                    for (let side of [-1, 1]) {
+                        ctx.save();
+                        ctx.translate(p.x + p.w / 2 + side * (p.w / 4 + p.fallY * 0.12), p.y + 7 + p.fallY);
+                        ctx.rotate(side * p.rot);
+                        ctx.beginPath(); ctx.roundRect(-p.w / 4, -7, p.w / 2 - 2, 14, 6); ctx.fill(); ctx.stroke();
+                        ctx.restore();
+                    }
+                    ctx.globalAlpha = 1;
+                }
+            }
             if (!(p.type === 'break' && p.broken)) {
                 ctx.shadowBlur = 10; ctx.shadowColor = color; ctx.fillStyle = 'rgba(10,15,30,0.85)';
                 ctx.strokeStyle = color; ctx.lineWidth = 2;
                 ctx.beginPath(); ctx.roundRect(p.x, p.y, p.w, 14, 7); ctx.fill(); ctx.stroke(); ctx.shadowBlur = 0;
+                if (p.type === 'spring') drawSpringIcon(p.x, p.y, p.w);
+                if (p.type === 'jetpack') { ctx.fillStyle = '#ff8800'; ctx.font = '16px Arial'; ctx.textAlign = 'center'; ctx.fillText('🎒', p.x + p.w/2, p.y + 11); }
+                if (p.type === 'boots') { ctx.fillStyle = '#00ccff'; ctx.font = '16px Arial'; ctx.textAlign = 'center'; ctx.fillText('🥾', p.x + p.w/2, p.y + 11); }
             }
 
-            if (doodleVy > 0 && !p.broken && doodleX > p.x - 10 && doodleX < p.x + p.w + 10 &&
+            // Пока летим на джетпаке — сквозь платформы, коллизий не считаем.
+            if (!jetpackOn && doodleVy > 0 && !p.broken && doodleX > p.x - 10 && doodleX < p.x + p.w + 10 &&
                 doodleY + 16 > p.y && doodleY + 16 < p.y + 20) {
-                if (p.type === 'break') { p.broken = true; playSynth('hit'); }
-                else {
-                    doodleVy = p.type === 'coin' ? -19 : -15.5; playSynth('jump');
-                    if (p.type === 'coin') { bonusCoins += 1; createFloatingText(doodleX, doodleY, '+coin', '#ffcc00'); }
+                if (p.type === 'break') {
+                    p.broken = true; playSynth('hit'); resetCombo();
+                    createParticle(p.x + p.w / 2, p.y + 7, '#ff3366', 8, 420, 2.5);
+                }
+                else if (p.type === 'jetpack') {
+                    doodleJetpackUntil = performance.now() + DOODLE_JETPACK_DURATION;
+                    playSynth('good'); createFloatingText(doodleX, doodleY, '🎒 ДЖЕТПАК!', '#ff8800');
+                } else if (p.type === 'boots') {
+                    doodleBootsUntil = performance.now() + DOODLE_BOOTS_DURATION;
+                    doodleVy = DOODLE_JUMP_NORMAL * DOODLE_BOOTS_MULTIPLIER;
+                    doodleSquash = 0.62; playSynth('good');
+                    createFloatingText(doodleX, doodleY, '🥾 ПРУЖИНЫ 10с!', '#00ccff');
+                } else {
+                    let base = p.type === 'coin' ? DOODLE_JUMP_COIN
+                             : p.type === 'spring' ? DOODLE_JUMP_SPRING
+                             : DOODLE_JUMP_NORMAL;
+                    // Пружинные ботинки усиливают ЛЮБОЙ отскок, пока надеты
+                    doodleVy = bootsOn ? base * DOODLE_BOOTS_MULTIPLIER : base;
+                    // Чем сильнее оттолкнулись — тем заметнее приплющило
+                    doodleSquash = p.type === 'spring' ? 0.55 : (bootsOn ? 0.62 : 0.72);
+                    playSynth('jump');
+                    createDust(doodleX, p.y, color);
+                    if (p.type === 'coin') {
+                        bonusCoins += 1; bumpCombo(doodleX, doodleY - 20);
+                        let gained = Math.round(1 * comboMult());
+                        createFloatingText(doodleX, doodleY, `+coin${combo>=3 ? ' x'+combo : ''}`, '#ffcc00');
+                    } else if (p.type === 'spring') {
+                        createFloatingText(doodleX, doodleY, 'БОИНГ!', '#00ccff');
+                    } else {
+                        resetCombo(); // приземлился на обычную платформу — цепочка монет прервалась
+                    }
                 }
             }
         }
 
         while (doodlePlatforms.length < 9) {
-            let topY = Math.min(...doodlePlatforms.map(p => p.y));
+            // Берём именно САМУЮ ВЕРХНЮЮ платформу: от неё игрок и будет
+            // прыгать дальше, поэтому и разрыв, и сдвиг вбок считаем от неё.
+            let top = doodlePlatforms.reduce((a, b) => (a.y < b.y ? a : b));
             let hardness = Math.min(doodleHeight / 4000, 1);
-            doodlePlatforms.push(genDoodlePlatform(topY - (70 + Math.random() * (40 + hardness * 35))));
+            let gap = DOODLE_GAP_MIN + Math.random() * (DOODLE_GAP_MAX - DOODLE_GAP_MIN) * (0.6 + hardness * 0.4);
+            doodlePlatforms.push(genDoodlePlatform(top.y - gap, top.x));
         }
 
-        drawDoodler(doodleX, doodleY, doodleTilt);
+        drawDoodler(doodleX, doodleY, doodleTilt, jetpackOn, doodleSquash, bootsOn);
+        // Остаток действия ботинок — иначе непонятно, когда пружины кончатся
+        if (bootsOn) {
+            let left = (doodleBootsUntil - performance.now()) / 1000;
+            ctx.fillStyle = '#00ccff'; ctx.font = 'bold 14px Rajdhani, "Segoe UI", Roboto, Arial, sans-serif'; ctx.textAlign = 'left';
+            ctx.fillText(`🥾 ПРУЖИНЫ ${left.toFixed(1)}с`, 14, height - 20);
+        }
         updateAndDrawParticles(dt);
 
         if (doodleY > height + 60) { playSynth('hit'); gameOver(); return; }
@@ -698,105 +881,421 @@
         gameReq = requestAnimationFrame(loopDoodle);
     }
 
+    // ===== RESALE 2048 =====
+    // Каждая плитка — объект {id, v, r, c} со своим DOM-элементом. Ход
+    // считается по плиткам, а не по массиву чисел: так известно, КАКАЯ
+    // плитка куда поехала, и её можно плавно довезти анимацией.
+    let tiles2048 = [], tileSeq = 0, moving2048 = false;
+    const SLIDE_MS = 120;
+
+    function layout2048() {
+        const size = grid2048.clientWidth || Math.min(window.innerWidth * 0.88, 370);
+        const pad = 10, gap = 10;
+        const cell = (size - pad * 2 - gap * 3) / 4;
+        return { cell, pos: (i) => pad + i * (cell + gap) };
+    }
+
     function init2048() {
-        board2048 = Array(16).fill(0);
-        add2048(); add2048(); draw2048();
-        
-        let startX=0, startY=0;
+        tiles2048 = []; tileSeq = 0; moving2048 = false;
+        grid2048.innerHTML = '';
+        const L = layout2048();
+        for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) {
+            const bg = document.createElement('div'); bg.className = 'cell-bg';
+            bg.style.cssText = `left:${L.pos(c)}px; top:${L.pos(r)}px; width:${L.cell}px; height:${L.cell}px;`;
+            grid2048.appendChild(bg);
+        }
+        add2048(); add2048();
+        board2048 = boardValues();
+
+        let startX = 0, startY = 0;
         grid2048.ontouchstart = e => { startX = e.touches[0].clientX; startY = e.touches[0].clientY; };
         grid2048.ontouchend = e => {
-            if(!isPlaying || currentGame !== '2048') return;
-            let dx = e.changedTouches[0].clientX - startX; let dy = e.changedTouches[0].clientY - startY;
-            if(Math.abs(dx)>35 && Math.abs(dx)>Math.abs(dy)) move2048(dx>0?'R':'L');
-            else if(Math.abs(dy)>35 && Math.abs(dy)>Math.abs(dx)) move2048(dy>0?'D':'U');
+            if (!isPlaying || currentGame !== '2048') return;
+            let dx = e.changedTouches[0].clientX - startX, dy = e.changedTouches[0].clientY - startY;
+            if (Math.abs(dx) > 30 && Math.abs(dx) > Math.abs(dy)) move2048(dx > 0 ? 'R' : 'L');
+            else if (Math.abs(dy) > 30 && Math.abs(dy) > Math.abs(dx)) move2048(dy > 0 ? 'D' : 'U');
         };
         window.onkeydown = e => {
-            if(!isPlaying || currentGame !== '2048') return;
-            if(e.key==='ArrowLeft') move2048('L'); if(e.key==='ArrowRight') move2048('R');
-            if(e.key==='ArrowUp') move2048('U'); if(e.key==='ArrowDown') move2048('D');
+            if (!isPlaying || currentGame !== '2048') return;
+            const k = { ArrowLeft: 'L', ArrowRight: 'R', ArrowUp: 'U', ArrowDown: 'D' }[e.key];
+            if (k) move2048(k);
         };
     }
 
-    let lastNewIdx = -1;
-
-    function add2048() {
-        let empty = board2048.map((v,i)=>v===0?i:null).filter(v=>v!==null);
-        if(empty.length === 0) { lastNewIdx = -1; return; }
-        // Со временем (по счёту) шанс невыгодной "четвёрки" вместо "двойки"
-        // растёт — под конец забега сложнее держать доску расчищенной.
-        let fourChance = Math.min(0.1 + score / 40000, 0.35);
-        let idx = empty[Math.floor(Math.random()*empty.length)];
-        board2048[idx] = Math.random() > fourChance ? 2 : 4;
-        lastNewIdx = idx;
+    function tileAt(r, c) { return tiles2048.find(t => t.r === r && t.c === c && !t.dead); }
+    function boardValues() {
+        const b = Array(16).fill(0);
+        tiles2048.forEach(t => { if (!t.dead) b[t.r * 4 + t.c] = t.v; });
+        return b;
     }
 
-    function draw2048(mergedIdxs) {
-        grid2048.innerHTML = '';
-        board2048.forEach((v, i) => {
-            let d = document.createElement('div'); d.className = 'tile';
-            if (i === lastNewIdx) d.className += ' tile-pop';
-            else if (mergedIdxs && mergedIdxs.has(i)) d.className += ' tile-merged';
-            if(v > 0) {
-                let conf = tMap[v] || {n:'MAX', c:'#0f1a26', tc:'#00ff88', svg:''};
-                d.style.background = conf.c; d.style.border = `1px solid ${conf.tc}`; d.style.boxShadow = `0 0 12px ${conf.tc}30`;
-                d.innerHTML = `<svg class="tile-icon" style="color:${conf.tc}" viewBox="0 0 24 24">${conf.svg}</svg>
-                               <div class="tile-name" style="color:${conf.tc}">${conf.n}</div>
-                               <div class="tile-val">${v}</div>`;
-            }
-            grid2048.appendChild(d);
-        });
+    function renderTile(t, cls) {
+        const L = layout2048();
+        if (!t.el) {
+            t.el = document.createElement('div'); t.el.className = 'tile';
+            t.el.style.width = L.cell + 'px'; t.el.style.height = L.cell + 'px';
+            t.el.style.transition = 'none';  // новая плитка встаёт сразу, без «подъезда» из угла
+            grid2048.appendChild(t.el);
+        }
+        const conf = tMap[t.v] || { n: 'MAX', c: '#0f1a26', tc: '#00ff88', svg: '' };
+        t.el.innerHTML = `<div class="tile-inner" style="background:${conf.c}; border:1px solid ${conf.tc}; box-shadow:0 0 12px ${conf.tc}30;">
+            <svg class="tile-icon" style="color:${conf.tc}" viewBox="0 0 24 24">${conf.svg}</svg>
+            <div class="tile-name" style="color:${conf.tc}">${conf.n}</div>
+            <div class="tile-val">${t.v}</div></div>`;
+        t.el.style.transform = `translate(${L.pos(t.c)}px, ${L.pos(t.r)}px)`;
+        if (cls) { t.el.classList.remove('tile-pop', 'tile-merged'); void t.el.offsetWidth; t.el.classList.add(cls); }
+        t.el.style.zIndex = cls === 'tile-merged' ? 3 : 2;
+        requestAnimationFrame(() => { if (t.el) t.el.style.transition = ''; });
+    }
+
+    function add2048() {
+        const empty = [];
+        for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) if (!tileAt(r, c)) empty.push([r, c]);
+        if (!empty.length) return;
+        // Со временем шанс невыгодной «четвёрки» растёт — под конец забега
+        // сложнее держать доску расчищенной.
+        const fourChance = Math.min(0.1 + score / 40000, 0.35);
+        const [r, c] = empty[Math.floor(Math.random() * empty.length)];
+        const t = { id: ++tileSeq, v: Math.random() > fourChance ? 2 : 4, r, c };
+        tiles2048.push(t);
+        renderTile(t, 'tile-pop');
     }
 
     function move2048(dir) {
-        let old = [...board2048]; let mergedAny = false;
-        let mergedFinalIdxs = new Set();
-        for(let i=0; i<4; i++) {
-            let row = [];
-            if(dir==='L') row = [board2048[i*4], board2048[i*4+1], board2048[i*4+2], board2048[i*4+3]];
-            if(dir==='R') row = [board2048[i*4+3], board2048[i*4+2], board2048[i*4+1], board2048[i*4]];
-            if(dir==='U') row = [board2048[i], board2048[i+4], board2048[i+8], board2048[i+12]];
-            if(dir==='D') row = [board2048[i+12], board2048[i+8], board2048[i+4], board2048[i]];
+        if (moving2048) return; // пока плитки едут, следующий свайп не принимаем
+        const vec = { L: [0, -1], R: [0, 1], U: [-1, 0], D: [1, 0] }[dir];
+        const order = [0, 1, 2, 3];
+        const rows = vec[0] === 1 ? [...order].reverse() : order;
+        const cols = vec[1] === 1 ? [...order].reverse() : order;
+        let moved = false, mergedCount = 0;
+        const mergedInto = new Set();
 
-            let arr = row.filter(v=>v);
-            let mergedFlags = arr.map(()=>false);
-            for(let j=0; j<arr.length-1; j++) {
-                if(arr[j] === arr[j+1]) {
-                    arr[j]*=2; arr[j+1]=0; mergedFlags[j]=true; mergedFlags[j+1]=false;
-                    score += arr[j]*15;
-                    mergedAny = true;
+        for (const r of rows) for (const c of cols) {
+            const t = tileAt(r, c); if (!t) continue;
+            let nr = r, nc = c;
+            while (true) {
+                const tr = nr + vec[0], tc = nc + vec[1];
+                if (tr < 0 || tr > 3 || tc < 0 || tc > 3) break;
+                const other = tileAt(tr, tc);
+                if (!other) { nr = tr; nc = tc; continue; }
+                // Сливаемся, если номинал тот же и в эту плитку ещё не вливали в этом ходу
+                if (other.v === t.v && !mergedInto.has(other.id)) {
+                    t.dead = true; t.r = tr; t.c = tc;     // доедет до цели и исчезнет
+                    other.v *= 2; mergedInto.add(other.id); other.justMerged = true;
+                    score += other.v * 15; mergedCount++;
+                    moved = true;
                 }
+                break;
             }
-            // Компактим значения и флаги синхронно, чтобы не потерять,
-            // какая именно плитка после слияния куда встала.
-            let compactVals = [], compactFlags = [];
-            for (let j = 0; j < arr.length; j++) if (arr[j] !== 0) { compactVals.push(arr[j]); compactFlags.push(mergedFlags[j]); }
-            while (compactVals.length < 4) { compactVals.push(0); compactFlags.push(false); }
-            row = compactVals;
+            if (!t.dead && (nr !== r || nc !== c)) { t.r = nr; t.c = nc; moved = true; }
+        }
+        if (!moved) return;
 
-            for (let j = 0; j < 4; j++) {
-                let boardIdx;
-                if(dir==='L') boardIdx = i*4+j;
-                if(dir==='R') boardIdx = i*4+3-j;
-                if(dir==='U') boardIdx = i+j*4;
-                if(dir==='D') boardIdx = i+(3-j)*4;
-                board2048[boardIdx] = row[j];
-                if (compactFlags[j]) mergedFinalIdxs.add(boardIdx);
+        // 1) Все плитки едут на новые места (CSS transition)
+        moving2048 = true;
+        const L = layout2048();
+        tiles2048.forEach(t => { if (t.el) t.el.style.transform = `translate(${L.pos(t.c)}px, ${L.pos(t.r)}px)`; });
+
+        // 2) Доехали — убираем поглощённые, слитые обновляем с «пульсом»
+        setTimeout(() => {
+            if (!isPlaying || currentGame !== '2048') { moving2048 = false; return; }
+            tiles2048.filter(t => t.dead).forEach(t => t.el && t.el.remove());
+            tiles2048 = tiles2048.filter(t => !t.dead);
+            tiles2048.forEach(t => { if (t.justMerged) { renderTile(t, 'tile-merged'); t.justMerged = false; } });
+
+            if (mergedCount) {
+                playSynth('merge');
+                score += Math.round(mergedCount * 20 * comboMult());
+                combo++;
+                if (combo > comboBest) comboBest = combo;
+                if (COMBO_MILESTONES.includes(combo)) {
+                    showComboToast(`🔥 КОМБО x${combo}`); playSynth('good');
+                    if (combo % 10 === 0) bonusCoins += 1;
+                }
+                if (isTgEnv && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+            } else {
+                resetCombo(); // ход был, но без слияния — цепочка прервалась
+            }
+            add2048();
+            board2048 = boardValues();
+            updateHud();
+            moving2048 = false;
+
+            if (!board2048.includes(0)) {
+                let canMove = false;
+                for (let i = 0; i < 4; i++) for (let j = 0; j < 3; j++) {
+                    if (board2048[i * 4 + j] === board2048[i * 4 + j + 1] ||
+                        board2048[j * 4 + i] === board2048[(j + 1) * 4 + i]) canMove = true;
+                }
+                if (!canMove) setTimeout(gameOver, 800);
+            }
+        }, SLIDE_MS);
+    }
+
+    // ===== ЗМЕЙКИ =====
+    // На поле лежат неоновые змейки — изогнутые, на несколько клеток, со
+    // стрелкой на голове. Тап по змейке — она ползёт головой вперёд, тело
+    // тянется следом по её же изгибам. Путь головы до края свободен —
+    // уползает с поля. Упёрлась в другую змейку — отдёргивается назад и
+    // минус жизнь. Очистил поле — следующий уровень: больше и длиннее.
+    //
+    // Уровни ГАРАНТИРОВАННО решаемые: собираем их «задом наперёд» — каждую
+    // новую змейку кладём только так, чтобы луч от её головы до края был
+    // свободен от уже лежащих. Тело при движении проходит только по своим
+    // же клеткам и этому лучу, а уход змейки лишь освобождает клетки, —
+    // поэтому порядок, в котором уползают все, существует всегда.
+    const ARR_VEC = { U: [0, -1], D: [0, 1], L: [-1, 0], R: [1, 0] };
+    const ARR_COLOR = { U: '#00ccff', D: '#ffcc00', L: '#ff55cc', R: '#00ff88' };
+    const ARR_LIVES = 3;
+    let arr = null;
+
+    function genArrowsLevel(level) {
+        const cols = Math.min(5 + Math.ceil(level / 2), 8);
+        const rows = Math.min(6 + Math.ceil(level / 2), 10);
+        const maxLen = Math.min(2 + Math.ceil(level / 2), 6);
+        const fill = Math.min(0.5 + level * 0.03, 0.78);       // какую долю клеток занять
+        const key = (c, r) => c + ',' + r;
+        const inside = (c, r) => c >= 0 && c < cols && r >= 0 && r < rows;
+        const occ = new Set(), snakes = [];
+        let used = 0;
+        for (let tries = 0; tries < 1500 && used < cols * rows * fill; tries++) {
+            const hc = Math.floor(Math.random() * cols), hr = Math.floor(Math.random() * rows);
+            if (occ.has(key(hc, hr))) continue;
+            for (const d of ['U', 'D', 'L', 'R'].sort(() => Math.random() - 0.5)) {
+                const [dc, dr] = ARR_VEC[d];
+                const ray = new Set(); let clear = true;
+                for (let x = hc + dc, y = hr + dr; inside(x, y); x += dc, y += dr) {
+                    if (occ.has(key(x, y))) { clear = false; break; }
+                    ray.add(key(x, y));
+                }
+                if (!clear) continue;
+                // Тело растёт от головы назад случайным блужданием с изгибами
+                const want = 2 + Math.floor(Math.random() * (maxLen - 1));
+                // Шея — строго позади головы: стрелка продолжает линию тела.
+                // Раньше шея могла уйти вбок, и голова «смотрела» поперёк
+                // змейки — выглядело как ошибка.
+                const nc = hc - dc, nr = hr - dr;
+                if (!inside(nc, nr) || occ.has(key(nc, nr))) continue;
+                const cells = [[hc, hr], [nc, nr]], mine = new Set([key(hc, hr), key(nc, nr)]);
+                while (cells.length < want) {
+                    const [lc, lr] = cells[cells.length - 1];
+                    const opts = [[1, 0], [-1, 0], [0, 1], [0, -1]]
+                        .map(([a, b]) => [lc + a, lr + b])
+                        .filter(([x, y]) => inside(x, y) && !occ.has(key(x, y)) && !mine.has(key(x, y)) && !ray.has(key(x, y)));
+                    if (!opts.length) break;
+                    // Чаще идём прямо — змейка выглядит естественнее, без «лесенок»
+                    let next = opts[Math.floor(Math.random() * opts.length)];
+                    if (cells.length >= 2) {
+                        const [pc, pr] = cells[cells.length - 2];
+                        const straight = opts.find(([x, y]) => x - lc === lc - pc && y - lr === lr - pr);
+                        if (straight && Math.random() < 0.55) next = straight;
+                    }
+                    cells.push(next); mine.add(key(next[0], next[1]));
+                }
+                if (cells.length < 2) continue;
+                cells.forEach(([x, y]) => occ.add(key(x, y)));
+                used += cells.length;
+                snakes.push({ cells, dir: d, state: 'idle', s: 0, v: 0, t: 0, appear: 0,
+                              delay: snakes.length * 0.035, hit: 0 });
+                break;
             }
         }
+        return { cols, rows, snakes };
+    }
 
-        if (mergedAny) playSynth('merge');
-        if(JSON.stringify(old) !== JSON.stringify(board2048)) {
-            add2048(); draw2048(mergedFinalIdxs); updateHud();
+    function arrLayout() {
+        const top = 92, bottom = 96;
+        const cell = Math.floor(Math.min((width - 28) / arr.cols, (height - top - bottom) / arr.rows, 60));
+        const ox = Math.round((width - cell * arr.cols) / 2);
+        const oy = Math.round(top + ((height - top - bottom) - cell * arr.rows) / 2);
+        return { cell, ox, oy };
+    }
+
+    function startArrows() {
+        lives = ARR_LIVES;
+        arr = { level: 1, banner: 1.2, levelStart: performance.now(), clearing: false };
+        Object.assign(arr, genArrowsLevel(1));
+        timeLeft = arr.level;  // в HUD-ячейке «уровень»
+        document.getElementById('ui-time-box').style.display = 'flex';
+        document.getElementById('ui-lives-box').style.display = 'flex';
+        document.getElementById('btn-ingame-exit').style.display = 'block';
+        canvas.style.display = 'block'; grid2048.style.display = 'none';
+        gameReq = requestAnimationFrame(loopArrows);
+    }
+
+    // Чья клетка стоит на луче головы и через сколько клеток (или null)
+    function arrBlocker(sn) {
+        const [dc, dr] = ARR_VEC[sn.dir];
+        const [hc, hr] = sn.cells[0];
+        for (let x = hc + dc, y = hr + dr, n = 1; x >= 0 && x < arr.cols && y >= 0 && y < arr.rows; x += dc, y += dr, n++) {
+            const b = arr.snakes.find(q => q !== sn && q.state !== 'fly' && q.cells.some(([a, bb]) => a === x && bb === y));
+            if (b) return { snake: b, dist: n };
         }
+        return null;
+    }
 
-        if(!board2048.includes(0)) {
-            let moves = false;
-            for(let i=0;i<4;i++) for(let j=0;j<3;j++) {
-                if(board2048[i*4+j]===board2048[i*4+j+1] || board2048[j*4+i]===board2048[(j+1)*4+i]) moves = true;
-            }
-            if(!moves) setTimeout(gameOver, 800);
+    // Точка на «рельсе» змейки: хвост → ... → голова → дальше по лучу.
+    // Сегмент i (0 = голова) при продвижении s стоит в точке (head + s - i).
+    function snakePoint(sn, idx, L) {
+        const n = sn.cells.length;            // индексы 0..n-1 — тело от хвоста к голове
+        const [dc, dr] = ARR_VEC[sn.dir];
+        let c, r;
+        if (idx <= n - 1) {
+            const i0 = Math.max(0, Math.floor(idx)), i1 = Math.min(n - 1, i0 + 1), f = idx - i0;
+            const a = sn.cells[n - 1 - i0], b = sn.cells[n - 1 - i1];
+            c = a[0] + (b[0] - a[0]) * f; r = a[1] + (b[1] - a[1]) * f;
+        } else {
+            const [hc, hr] = sn.cells[0], k = idx - (n - 1);
+            c = hc + dc * k; r = hr + dr * k;
+        }
+        return [L.ox + (c + 0.5) * L.cell, L.oy + (r + 0.5) * L.cell];
+    }
+
+    function onArrowsTap(e) {
+        if (!isPlaying || currentGame !== 'arrows' || !arr || arr.clearing) return;
+        const rect = canvas.getBoundingClientRect();
+        const px = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+        const py = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+        const L = arrLayout();
+        const c = Math.floor((px - L.ox) / L.cell), r = Math.floor((py - L.oy) / L.cell);
+        const sn = arr.snakes.find(q => q.state === 'idle' && q.appear >= 1 && q.cells.some(([a, b]) => a === c && b === r));
+        if (!sn) return;
+        const [hx, hy] = snakePoint(sn, sn.cells.length - 1, L);
+        const block = arrBlocker(sn);
+        if (block) {
+            sn.state = 'bump'; sn.t = 0; sn.bumpDist = block.dist - 1 + 0.3;
+            block.snake.hit = 0.35;
+            lives = Math.max(0, lives - 1); resetCombo(); updateHud();
+            playSynth('hit'); shakeScreen();
+            createFloatingText(hx, hy - 18, 'ЗАНЯТО!', '#ff3366');
+            if (lives <= 0) { arr.clearing = true; setTimeout(gameOver, 650); }
+        } else {
+            sn.state = 'fly'; sn.v = 6; sn.s = 0;   // скорость в клетках/с, растёт
+            bumpCombo(hx, hy - 20);
+            score += Math.round((8 + sn.cells.length * 4) * comboMult()); updateHud();
+            playSynth('good');
+            if (isTgEnv && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
         }
     }
+    canvas.addEventListener('pointerdown', onArrowsTap);
+
+    // Путь змейки: точки только в узлах (хвост, повороты, голова), а углы
+    // скругляются дугами arcTo — тело выглядит как гибкая трубка, а не
+    // как ломаная из отрезков.
+    function snakePath(sn, L) {
+        const n = sn.cells.length, head = (n - 1) + sn.s, tail = head - (n - 1);
+        const pts = [snakePoint(sn, tail, L)];
+        for (let k = Math.floor(tail) + 1; k < head - 1e-6; k++) pts.push(snakePoint(sn, k, L));
+        pts.push(snakePoint(sn, head, L));
+        return pts;
+    }
+
+    function traceSmooth(pts, radius) {
+        ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+        for (let k = 1; k < pts.length - 1; k++) ctx.arcTo(pts[k][0], pts[k][1], pts[k + 1][0], pts[k + 1][1], radius);
+        ctx.lineTo(pts[pts.length - 1][0], pts[pts.length - 1][1]);
+    }
+
+    function drawSnake(sn, L, alpha, scale) {
+        const col = ARR_COLOR[sn.dir], red = sn.state === 'bump' || sn.hit > 0;
+        const color = red ? '#ff3366' : col;
+        const pts = snakePath(sn, L);
+        const [hx, hy] = pts[pts.length - 1];
+        const [dx, dy] = ARR_VEC[sn.dir];
+        const w = L.cell * 0.30 * scale;
+        const rad = L.cell * 0.42;
+        // Голова: шея чуть продлевается вперёд, на конце — шеврон «>» из той же
+        // трубки (две короткие дуги-крылышки с круглыми концами).
+        const hs = L.cell * 0.30 * scale;
+        const tip = [hx + dx * hs * 0.85, hy + dy * hs * 0.85];
+        const wingL = [tip[0] - dx * hs + dy * hs * 0.9, tip[1] - dy * hs - dx * hs * 0.9];
+        const wingR = [tip[0] - dx * hs - dy * hs * 0.9, tip[1] - dy * hs + dx * hs * 0.9];
+        const body = pts.concat([[hx + dx * hs * 0.55, hy + dy * hs * 0.55]]);
+        const chevron = () => { ctx.beginPath(); ctx.moveTo(wingL[0], wingL[1]); ctx.lineTo(tip[0], tip[1]); ctx.lineTo(wingR[0], wingR[1]); };
+
+        ctx.save(); ctx.globalAlpha = alpha; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        // 1) неоновый контур со свечением
+        ctx.shadowBlur = 16; ctx.shadowColor = color; ctx.strokeStyle = color;
+        ctx.lineWidth = w + 5; traceSmooth(body, rad); ctx.stroke();
+        ctx.lineWidth = w * 0.62 + 5; chevron(); ctx.stroke();
+        ctx.shadowBlur = 0;
+        // 2) тёмная сердцевина трубки
+        ctx.strokeStyle = red ? 'rgba(70,10,25,0.96)' : 'rgba(10,15,30,0.96)';
+        ctx.lineWidth = w - 1; traceSmooth(body, rad); ctx.stroke();
+        ctx.lineWidth = Math.max(1, w * 0.62 - 1); chevron(); ctx.stroke();
+        // 3) мягкий световой «шов» по центру — даёт объём
+        const grad = ctx.createLinearGradient(pts[0][0], pts[0][1], hx, hy);
+        grad.addColorStop(0, 'rgba(255,255,255,0)'); grad.addColorStop(1, color);
+        ctx.strokeStyle = grad; ctx.globalAlpha = alpha * 0.55; ctx.lineWidth = Math.max(1.5, w * 0.16);
+        traceSmooth(body, rad); ctx.stroke();
+        // 4) яркий кончик головы
+        ctx.globalAlpha = alpha; ctx.fillStyle = color; ctx.shadowBlur = 10; ctx.shadowColor = color;
+        ctx.beginPath(); ctx.arc(tip[0], tip[1], Math.max(2, w * 0.2), 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+    }
+
+    function loopArrows(time) {
+        if (!isPlaying) return;
+        let dt = (time - lastTime) / 1000; lastTime = time; if (dt > 0.1) dt = 0.1;
+        ctx.clearRect(0, 0, width, height); drawBackground(dt);
+        const L = arrLayout();
+
+        ctx.fillStyle = 'rgba(10,16,32,0.55)'; ctx.strokeStyle = 'rgba(0,255,136,0.18)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.roundRect(L.ox - 8, L.oy - 8, L.cell * arr.cols + 16, L.cell * arr.rows + 16, 14); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = 'rgba(255,255,255,0.08)';
+        for (let r = 0; r < arr.rows; r++) for (let c = 0; c < arr.cols; c++) {
+            ctx.beginPath(); ctx.arc(L.ox + (c + 0.5) * L.cell, L.oy + (r + 0.5) * L.cell, 1.6, 0, Math.PI * 2); ctx.fill();
+        }
+
+        const far = Math.max(arr.cols, arr.rows) + 8;   // столько клеток — и змейка точно за экраном
+        for (let i = arr.snakes.length - 1; i >= 0; i--) {
+            const sn = arr.snakes[i];
+            if (sn.appear < 1) { sn.delay -= dt; if (sn.delay <= 0) sn.appear = Math.min(1, sn.appear + dt * 4); }
+            if (sn.hit) sn.hit = Math.max(0, sn.hit - dt);
+            if (sn.state === 'fly') {
+                sn.v += 34 * dt; sn.s += sn.v * dt;
+                if (sn.s - sn.cells.length > far) { arr.snakes.splice(i, 1); continue; }
+            } else if (sn.state === 'bump') {
+                sn.t += dt; const T = 0.34, k = Math.min(1, sn.t / T);
+                sn.s = sn.bumpDist * Math.sin(k * Math.PI);   // туда и обратно одной дугой
+                if (k >= 1) { sn.state = 'idle'; sn.s = 0; }
+            }
+            const a = sn.appear;
+            const sc = a <= 0 ? 0 : 1 + 2.2 * Math.pow(a - 1, 3) + 1.2 * Math.pow(a - 1, 2);  // easeOutBack
+            if (sc <= 0) continue;
+            drawSnake(sn, L, Math.min(1, a * 1.5), sc);
+        }
+
+        if (!arr.clearing && arr.snakes.length === 0) {
+            arr.clearing = true;
+            const secs = (performance.now() - arr.levelStart) / 1000;
+            const par = 5 + arr.level * 3;
+            const bonus = 50 + 25 * arr.level + Math.max(0, Math.round((par - secs) * 4));
+            score += bonus; updateHud();
+            createFloatingText(width / 2, height / 2 + 40, `+${bonus} за уровень`, '#ffcc00');
+            playSynth('good');
+            setTimeout(() => {
+                if (!isPlaying || currentGame !== 'arrows') return;
+                arr.level++;
+                Object.assign(arr, genArrowsLevel(arr.level));
+                arr.levelStart = performance.now(); arr.banner = 1.2; arr.clearing = false;
+                timeLeft = arr.level; updateHud();
+            }, 900);
+        }
+
+        if (arr.banner > 0) {
+            arr.banner -= dt;
+            ctx.globalAlpha = Math.min(1, arr.banner * 2.5);
+            ctx.fillStyle = '#e6f1ff'; ctx.shadowBlur = 16; ctx.shadowColor = '#00ff88';
+            ctx.font = 'bold 26px Orbitron, "Segoe UI", Roboto, Arial, sans-serif'; ctx.textAlign = 'center';
+            ctx.fillText(`УРОВЕНЬ ${arr.level}`, width / 2, L.oy - 22);
+            ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+        }
+
+        updateAndDrawParticles(dt);
+        gameReq = requestAnimationFrame(loopArrows);
+    }
+
 </script>
 </body>
 </html>
