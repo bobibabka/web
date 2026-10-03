@@ -223,10 +223,10 @@
                 Очки маржи: <span style="color:#00ccff; font-family:'Orbitron'; font-weight:bold;" id="final-score">0</span>
             </div>
             <div style="margin-bottom: 18px; font-size: 16px; color: #00ff88; font-weight: bold;">
-                Получено бонус-коинов: <span style="font-family:'Orbitron';" id="final-coins">0</span> 🪙
+                Токенов за игру: ~<span style="font-family:'Orbitron';" id="final-coins">0</span> 🪙
             </div>
 
-            <button id="btn-finish" class="btn-neon" onclick="finishSession()">СОХРАНИТЬ КОИНЫ</button>
+            <button id="btn-finish" class="btn-neon" onclick="finishSession()">ЗАБРАТЬ ТОКЕНЫ</button>
         </div>
     </div>
 
@@ -259,7 +259,15 @@
 <script>
     // Инициализация Telegram
     let tg = window.Telegram ? window.Telegram.WebApp : null;
-    let isTgEnv = tg && tg.initData !== "";
+    // Внутри ли мы Telegram — определяем по platform, а НЕ по initData.
+    // Игра открывается кнопкой нижней клавиатуры (только так работает
+    // sendData), а в этом режиме Telegram НЕ передаёт initData — она пустая.
+    // Старая проверка «initData не пустая» поэтому решала, что мы в обычном
+    // браузере, и очки боту не отправлялись вообще.
+    let isTgEnv = !!(tg && tg.platform && tg.platform !== 'unknown');
+    // sendData доступен только при запуске с кнопки клавиатуры — это как
+    // раз тот случай, когда initData пустая.
+    let canSendData = isTgEnv && !tg.initData;
     if (isTgEnv) { tg.expand(); tg.ready(); }
 
     // ===== ПРОФИЛЬ ИГРОКА (данные прокидывает бот через параметры URL) =====
@@ -276,7 +284,15 @@
         avatar: _params.get('avatar') || '',
         searches: _num(_params.get('searches'), 0),
         xp: _num(_params.get('xp'), 0),   // всего заработано коинов за всё время (не падает)
-        history: []
+        history: [],
+        // Делители очков -> токены и остаток лимита заработка присылает бот.
+        // Нет параметров (старая ссылка, тест вне Telegram) — запасные значения.
+        div: {
+            arrows: _num(_params.get('d_arrows'), 8),
+            '2048': _num(_params.get('d_2048'), 4),
+            doodle: _num(_params.get('d_doodle'), 6),
+        },
+        gcap: _num(_params.get('gcap'), 100),
     };
     try {
         const h = _params.get('history');
@@ -570,10 +586,11 @@
     }
 
     function calculateCoins(score, gameType) {
-        if (gameType === 'arrows') return Math.floor(score / 400);
-        if (gameType === '2048') return Math.floor(score / 200);
-        if (gameType === 'doodle') return Math.floor(score / 250);
-        return 0;
+        // Те же делители, что у бота (GAME_TOKEN_DIVISORS в config.py) —
+        // чтобы обещанное на экране совпадало с тем, что придёт. Бот ещё
+        // добавит бонус за рекорд и учтёт дневной лимит.
+        const d = profile.div[gameType];
+        return d ? Math.floor(score / d) : 0;
     }
 
     function gameOver() {
@@ -584,20 +601,28 @@
         document.getElementById('btn-ingame-exit').style.display = 'none';
         document.getElementById('screen-gameover').classList.add('active');
 
-        bonusCoins = (currentGame === 'doodle' ? bonusCoins : 0) + calculateCoins(score, currentGame);
+        // Оценка того, что начислит бот: его делители и дневной потолок 300
+        // (бот сам пересчитает по очкам — числу из браузера он не верит).
+        bonusCoins = Math.max(0, Math.min(calculateCoins(score, currentGame), profile.gcap));
         document.getElementById('final-score').innerText = score;
         document.getElementById('final-coins').innerText = bonusCoins;
         renderBottomBar(); showBottomBar(true);
 
         if (isTgEnv) {
-            tg.MainButton.text = `💰 СОХРАНИТЬ ${bonusCoins} КОИНОВ`;
+            tg.MainButton.text = `🪙 ЗАБРАТЬ ~${bonusCoins} ТОКЕНОВ`;
             tg.MainButton.color = "#00ff88"; tg.MainButton.textColor = "#05050A";
-            tg.MainButton.show();
+            tg.MainButton.offClick(finishSession);   // не копим обработчики от прошлых игр
             tg.MainButton.onClick(finishSession);
+            tg.MainButton.show();
+            // Закрыл крестиком, не забрав токены, — спросим «точно?»,
+            // иначе результат молча терялся.
+            if (tg.enableClosingConfirmation) tg.enableClosingConfirmation();
         }
     }
 
+    let sessionSent = false;
     function finishSession() {
+        if (sessionSent) return;  // двойной тап по кнопке — не шлём дважды
         // Оптимистично докидываем заработанное в панель, чтобы игрок сразу
         // увидел рост токенов и уровня. Настоящие значения бот пересчитает и
         // подставит при следующем открытии игры.
@@ -612,9 +637,21 @@
             bonus_coins: bonusCoins
         };
 
-        if (isTgEnv) {
-            tg.sendData(JSON.stringify(payload));
-            tg.close();
+        if (canSendData) {
+            sessionSent = true;
+            if (tg.disableClosingConfirmation) tg.disableClosingConfirmation();
+            tg.sendData(JSON.stringify(payload));   // Telegram сам закроет игру
+            setTimeout(() => tg.close(), 300);
+        } else if (isTgEnv) {
+            // Открыли не той кнопкой (например, из меню бота или по ссылке) —
+            // в этом режиме Telegram не даёт игре передать очки. Честно говорим.
+            if (tg.disableClosingConfirmation) tg.disableClosingConfirmation();
+            tg.MainButton.hide();
+            const msgBox = document.querySelector('#screen-gameover .menu-box');
+            msgBox.innerHTML = '<h1 style="font-size:20px; text-shadow:0 0 12px #ffcc00;">⚠️ ТОКЕНЫ НЕ ЗАЧТУТСЯ</h1>' +
+                '<p>Игра открыта не той кнопкой. Чтобы токены начислились, открой её кнопкой ' +
+                '<b>«🎮 Играть»</b> внизу чата с ботом (Заработать токены → Играть).</p>' +
+                '<button class="btn-neon" onclick="tg.close()">ПОНЯТНО</button>';
         } else {
             alert(`Данные для бота:\n\nИгра: ${currentGame}\nОчки: ${score}\nКоины: ${bonusCoins} 🪙\n\nВ реальном боте интерфейс закроется сам.`);
             document.location.reload();
