@@ -112,6 +112,42 @@
         .tile-merged .tile-inner { animation: tileMerge 0.22s ease-out; }
         @keyframes tilePop { from { transform: scale(0.2); opacity: 0; } to { transform: scale(1); opacity: 1; } }
         @keyframes tileMerge { 0% { transform: scale(1); } 40% { transform: scale(1.22); filter: brightness(1.5); } 100% { transform: scale(1); } }
+        /* Крупное слияние (256+) — пульс сильнее и дольше, с ореолом */
+        .tile-merged-big .tile-inner { animation: tileMergeBig 0.42s cubic-bezier(.2,.9,.3,1.2); }
+        @keyframes tileMergeBig {
+            0% { transform: scale(1); }
+            35% { transform: scale(1.38) rotate(-4deg); filter: brightness(2.1); box-shadow: 0 0 40px currentColor; }
+            65% { transform: scale(0.94) rotate(2deg); }
+            100% { transform: scale(1); }
+        }
+        /* Плитку разбили молотком */
+        .tile-smash .tile-inner { animation: tileSmash 0.22s ease-in forwards; }
+        @keyframes tileSmash { to { transform: scale(0.1) rotate(25deg); opacity: 0; } }
+        /* Режим молотка: плитки подсвечены, тап по плитке — разбить */
+        #grid-2048.hammer-mode { box-shadow: 0 0 0 2px #ffcc00, 0 0 24px rgba(255,204,0,0.45); }
+        #grid-2048.hammer-mode .tile .tile-inner { animation: hammerWobble 0.6s ease-in-out infinite; cursor: crosshair; }
+        @keyframes hammerWobble { 0%,100% { transform: rotate(0); } 25% { transform: rotate(-3deg); } 75% { transform: rotate(3deg); } }
+
+        /* Инструменты 2048 в HUD: молоток и отмена хода */
+        #hud-2048-tools { display: none; gap: 8px; align-items: center; }
+        .tool-btn {
+            position: relative; min-width: 54px; height: 38px; padding: 0 8px; border-radius: 10px;
+            background: rgba(255,204,0,0.08); border: 1.5px solid rgba(255,204,0,0.55); color: #ffcc00;
+            font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 14px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 4px; overflow: hidden;
+        }
+        .tool-btn:disabled { opacity: 0.35; cursor: default; }
+        .tool-btn.armed { background: #ffcc00; color: #05050A; }
+        .tool-btn .tool-prog { position: absolute; left: 0; bottom: 0; height: 3px; background: #ffcc00; width: 0%; transition: width .25s; }
+        .tool-btn.gain { animation: toolGain 0.5s ease-out; }
+        @keyframes toolGain { 0% { transform: scale(1); } 40% { transform: scale(1.3); box-shadow: 0 0 18px #ffcc00; } 100% { transform: scale(1); } }
+
+        /* Вспышка всего экрана (удар, крупное слияние, рекорд) */
+        #fx-flash { position: fixed; inset: 0; pointer-events: none; z-index: 30; opacity: 0; }
+        #fx-flash.go { animation: fxFlash 0.35s ease-out forwards; }
+        @keyframes fxFlash { 0% { opacity: var(--fa, 0.45); } 100% { opacity: 0; } }
+        /* В 2048 холст лежит ПОВЕРХ сетки и рисует только частицы/надписи */
+        canvas.fx-overlay { z-index: 6; pointer-events: none; }
 
         /* Карточка найденного лота */
         .listing-card {
@@ -222,6 +258,7 @@
             <div style="margin-bottom: 8px; font-size: 15px;">
                 Очки маржи: <span style="color:#00ccff; font-family:'Orbitron'; font-weight:bold;" id="final-score">0</span>
             </div>
+            <div id="final-record" style="display:none; margin-bottom: 8px; font-size: 14px; color: #ffcc00; font-weight: bold;"></div>
             <div style="margin-bottom: 18px; font-size: 16px; color: #00ff88; font-weight: bold;">
                 Токенов за игру: ~<span style="font-family:'Orbitron';" id="final-coins">0</span> 🪙
             </div>
@@ -235,12 +272,19 @@
             <div class="hud-stat"><span class="hud-label">ОЧКИ</span><span class="hud-val" id="val-score">0</span></div>
             <div class="hud-stat" id="ui-time-box"><span class="hud-label">УРОВЕНЬ</span><span class="hud-val" id="val-time">120</span></div>
             <div class="hud-stat" id="ui-lives-box"><span class="hud-label">ЖИЗНИ</span><span class="hud-val" id="val-lives">|||||</span></div>
+            <!-- Бонусы 2048: зарабатываются игрой (не покупаются) -->
+            <div id="hud-2048-tools">
+                <button id="btn-hammer" class="tool-btn" onclick="toggle2048Hammer()" title="Молоток: убрать одну плитку">🔨<span id="cnt-hammer">0</span><span class="tool-prog" id="prog-hammer"></span></button>
+                <button id="btn-undo" class="tool-btn" onclick="undo2048()" title="Отменить последний ход">↩️<span id="cnt-undo">0</span></button>
+            </div>
         </div>
         <canvas id="gameCanvas"></canvas>
         <div id="grid-2048" class="glass-panel"></div>
         <div id="combo-toast"></div>
         <button id="btn-ingame-exit" class="btn-neon btn-exit" style="display:none; position:absolute; bottom:18px; left:50%; transform:translateX(-50%); width: 85%; max-width:340px; z-index:10;" onclick="gameOver()">ЗАВЕРШИТЬ СЕССИЮ</button>
     </div>
+    <!-- Вспышка — вне game-container, чтобы тряска (transform) не загоняла её под экраны -->
+    <div id="fx-flash"></div>
 
     <!-- Нижняя панель: баланс токенов + уровень игрока (XP). Видна в меню и
          профиле, прячется во время самой игры, чтобы не мешать. -->
@@ -397,6 +441,27 @@
             osc.frequency.exponentialRampToValueAtTime(800, now + 0.06);
             gain.gain.setValueAtTime(0.18, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.06);
             osc.start(now); osc.stop(now + 0.06);
+        } else if (type === 'stomp') {
+            // Расплющили монстра: короткий «чпок» сверху вниз
+            osc.type = 'square'; osc.frequency.setValueAtTime(520, now);
+            osc.frequency.exponentialRampToValueAtTime(90, now + 0.14);
+            gain.gain.setValueAtTime(0.13, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.14);
+            osc.start(now); osc.stop(now + 0.14);
+        } else if (type === 'big') {
+            // Крупное слияние / уровень пройден: длинный подъём
+            osc.type = 'triangle'; osc.frequency.setValueAtTime(330, now);
+            osc.frequency.exponentialRampToValueAtTime(1320, now + 0.3);
+            gain.gain.setValueAtTime(0.16, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.32);
+            osc.start(now); osc.stop(now + 0.32);
+        } else if (type === 'record') {
+            // Рекорд: две ступеньки вверх
+            osc.type = 'triangle'; osc.frequency.setValueAtTime(660, now);
+            osc.frequency.setValueAtTime(880, now + 0.1); osc.frequency.setValueAtTime(1320, now + 0.2);
+            gain.gain.setValueAtTime(0.15, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+            osc.start(now); osc.stop(now + 0.4);
+        } else {
+            // Неизвестный звук — просто молчим (и не оставляем висящий осциллятор)
+            osc.start(now); osc.stop(now + 0.001); gain.gain.setValueAtTime(0, now);
         }
     }
 
@@ -462,6 +527,57 @@
     const DOODLE_BOOTS_DURATION = 10000;
     const DOODLE_BOOTS_MULTIPLIER = 1.55;
 
+    // --- Очки Прайс-прыгуна ---
+    // Раньше очки = высота в пикселях, и сильный игрок за минуту набирал
+    // 15–18 тыс. при серверном потолке 5000 (выше — «накрутка»). Теперь
+    // одно очко = DOODLE_PX_PER_POINT пикселей высоты + скромные бонусы.
+    const DOODLE_PX_PER_POINT = 8;
+    const DOODLE_MONSTER_POINTS = 15;        // за растоптанного монстра
+    const DOODLE_MONSTER_KNOCK_POINTS = 5;   // за сбитого в полёте (джетпак/пропеллер)
+
+    // --- Пропеллер: слабее и короче джетпака ---
+    const DOODLE_PROPELLER_DURATION = 2600;  // мс
+    const DOODLE_PROPELLER_VY = -620;        // px/с (джетпак — -900)
+
+    // --- Монстры, чёрные дыры и исчезающие платформы ---
+    const DOODLE_PLAYER_HALF = 18;           // полуширина кубика (хитбокс)
+    const DOODLE_SAFE_MARGIN = 10;           // запас между «коридором» пути и опасностью
+    const DOODLE_SPAWN_AHEAD = 420;          // на сколько px выше экрана заранее строим уровень
+    const DOODLE_MONSTER_START = 1200;       // с какой высоты (px) появляются монстры
+    const DOODLE_HOLE_START = 4200;          // с какой высоты возможны чёрные дыры
+    const DOODLE_VANISH_START = 700;         // с какой высоты бывают исчезающие платформы
+    const DOODLE_HAZARD_RAMP = 6000;         // за сколько px шанс опасности дорастает до максимума
+    const DOODLE_HAZARD_CHANCE_MIN = 0.30;   // шанс начать «секцию с опасностью» на каждой платформе
+    const DOODLE_HAZARD_CHANCE_MAX = 0.55;
+    const DOODLE_HAZARD_COOLDOWN = 600;      // минимум px по высоте между двумя опасностями
+    const DOODLE_HOLE_SHARE = 0.18;          // доля чёрных дыр среди опасностей
+    const DOODLE_SECTION_MAX = 7;            // столько платформ максимум ждём места под опасность
+    const DOODLE_BOOTS_HAZARD_GRACE = 1700;  // мс после конца ботинок без новых опасностей
+    const DOODLE_JUMP_MONSTER = -900;        // отскок от растоптанного монстра
+    const DOODLE_HOLE_R = 22;                // радиус «смертельной» части дыры
+    const DOODLE_HOLE_SUCK_TIME = 0.6;       // с — затягивание в дыру
+    const DOODLE_DEATH_TIME = 1.0;           // с — падение после удара монстра
+    const DOODLE_FALL_DEATH_TIME = 0.35;     // с — пауза после падения за экран
+    const DOODLE_SHAKE_DECAY = 9;            // 1/с — как быстро затухает тряска камеры
+    const DOODLE_VANISH_FADE = 4;            // 1/с — как быстро тает исчезающая платформа
+    // Виды монстров: r — радиус хитбокса, range — размах полёта вбок,
+    // bob — покачивание по вертикали, speed — рад/с фазы, minAlt — с какой высоты.
+    const DOODLE_MONSTERS = {
+        blob:  { r: 19, range: 0,  bob: 5, speed: 2.4, minAlt: 0,    color: '#b57cff' },
+        bat:   { r: 16, range: 38, bob: 7, speed: 1.9, minAlt: 2600, color: '#ff55cc' },
+        brute: { r: 23, range: 22, bob: 3, speed: 1.2, minAlt: 4000, color: '#ff3366' },
+    };
+
+    let doodlePropUntil = 0;       // timestamp (ms) конца пропеллера
+    let doodleMonsters = [], doodleHoles = [];
+    let doodleChain = [];          // платформы ОСНОВНОГО пути (без ловушек) — по ним гарантирована досягаемость
+    let doodleSection = null;      // «секция»: путь уводится в сторону, чтобы освободить место под опасность
+    let doodleLastHazardAlt = -1e9, doodleLastBootsAlt = -1e9;
+    let doodleBonus = 0;           // бонусные очки (монстры) поверх высоты
+    let doodleShake = 0;           // амплитуда тряски камеры, px
+    let doodleDead = null;         // {kind: 'monster'|'hole'|'fall', t, hx, hy} — анимация гибели
+    let doodleScale = 1;           // масштаб кубика (затягивание в дыру)
+
     // Управление
     const moveHandler = (e) => { playerX = (e.touches ? e.touches[0].clientX : e.clientX); };
     window.addEventListener('touchmove', moveHandler, {passive: true});
@@ -508,8 +624,15 @@
     // Более надежный способ запуска экрана загрузки
     document.addEventListener("DOMContentLoaded", runBootSequence);
 
+    // Вибрация телефона. В старых клиентах Telegram HapticFeedback может не
+    // быть — без проверки это исключение, а внутри игрового цикла оно
+    // молча замораживает игру.
+    function haptic(kind) {
+        try { if (isTgEnv && tg.HapticFeedback) tg.HapticFeedback.impactOccurred(kind || 'light'); } catch (e) {}
+    }
+
     function shakeScreen() {
-        if(isTgEnv) tg.HapticFeedback.impactOccurred('heavy');
+        haptic('heavy');
         container.classList.add('shake');
         setTimeout(() => container.classList.replace('shake', 'shake2'), 50);
         setTimeout(() => container.classList.remove('shake2'), 100);
@@ -534,6 +657,85 @@
     }
     function createFloatingText(x, y, text, color) { floatTexts.push({ x, y, text, color, life: 1, vy: -70, scale: 0.6 }); }
 
+    // Конфетти: летят вверх веером и падают под гравитацией (всё в px/с).
+    function createConfetti(x, y, count, spread) {
+        const colors = ['#00ff88', '#00ccff', '#ffcc00', '#ff55cc', '#b57cff'];
+        for (let i = 0; i < (count || 30); i++) {
+            const a = -Math.PI / 2 + (Math.random() * 2 - 1) * (spread || 0.9);
+            const v = 380 + Math.random() * 420;
+            particles.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 1.4,
+                             color: colors[i % colors.length], size: 2.5 + Math.random() * 2.5, g: 900 });
+        }
+    }
+
+    // Вспышка всего экрана поверх всего (кроме нижней панели).
+    function flashScreen(color, alpha) {
+        const el = document.getElementById('fx-flash');
+        if (!el) return;
+        el.style.background = color || '#ffffff';
+        el.style.setProperty('--fa', String(alpha || 0.4));
+        el.classList.remove('go'); void el.offsetWidth; el.classList.add('go');
+    }
+
+    // Полифилл roundRect: в старых WebView (iOS < 16, старый Android) его нет,
+    // и первый же вызов бросал исключение внутри игрового цикла.
+    if (window.CanvasRenderingContext2D && !CanvasRenderingContext2D.prototype.roundRect) {
+        CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+            r = Math.max(0, Math.min(typeof r === 'number' ? r : 0, Math.abs(w) / 2, Math.abs(h) / 2));
+            this.moveTo(x + r, y); this.arcTo(x + w, y, x + w, y + h, r); this.arcTo(x + w, y + h, x, y + h, r);
+            this.arcTo(x, y + h, x, y, r); this.arcTo(x, y, x + w, y, r); this.closePath();
+        };
+    }
+
+    // Обёртка кадра: если внутри шага что-то бросит, игра не замёрзнет —
+    // ошибка уйдёт в консоль, а следующий кадр всё равно запланируется.
+    // (Сам шаг планирует кадр в самом конце, поэтому двойного кадра нет.)
+    function safeFrame(step) {
+        const wrapped = function (time) {
+            try { step(time); }
+            catch (e) { console.error('[игровой цикл]', e); if (isPlaying) gameReq = requestAnimationFrame(wrapped); }
+        };
+        return wrapped;
+    }
+
+    // --- Защитный потолок очков ---
+    // Сервер считает всё выше GAME_MAX_SCORE накруткой (arrows 12000,
+    // 2048 40000, doodle 5000). Очень длинная честная игра не должна
+    // выглядеть как читерство — поэтому держим счёт чуть ниже потолка.
+    const SCORE_SAFE_MAX = { arrows: 11400, '2048': 38000, doodle: 4750 };
+    function clampScore() {
+        const cap = SCORE_SAFE_MAX[currentGame];
+        if (cap && score > cap) score = cap;
+        if (!(score >= 0)) score = 0;  // и от NaN тоже
+    }
+
+    // --- Личный рекорд ---
+    // Бот пока не передаёт рекорд в игру, поэтому помним его на устройстве
+    // (localStorage). Если бот когда-нибудь пришлёт параметр best_<игра>
+    // (например best_doodle=1234), возьмём максимум из двух.
+    const RECORD_KEY_PREFIX = 'arh_best_';
+    let bestScoreRun = 0, recordCelebrated = false;
+    function loadBest(game) {
+        let b = _num(_params.get('best_' + game), 0);
+        try { b = Math.max(b, parseInt(localStorage.getItem(RECORD_KEY_PREFIX + game), 10) || 0); } catch (e) {}
+        return Math.max(0, b);
+    }
+    function saveBest(game, value) {
+        try { localStorage.setItem(RECORD_KEY_PREFIX + game, String(value)); } catch (e) {}
+    }
+    function checkRecord() {
+        // Празднуем один раз за забег и только если рекорд уже был
+        // (первая игра — не «новый рекорд», а просто первая игра).
+        if (recordCelebrated || !isPlaying || bestScoreRun <= 0 || score <= bestScoreRun) return;
+        recordCelebrated = true;
+        showComboToast('🏆 НОВЫЙ РЕКОРД!');
+        flashScreen('#ffcc00', 0.3);
+        playSynth('record');
+        haptic('medium');
+        createConfetti(width * 0.2, height * 0.35, 18, 0.7);
+        createConfetti(width * 0.8, height * 0.35, 18, 0.7);
+    }
+
     function startGame(type) {
         initAudio();
         currentGame = type;
@@ -543,7 +745,10 @@
         
         isPlaying = true; score = 0; bonusCoins = 0; items = []; bonuses = []; particles = []; floatTexts = [];
         lastTime = performance.now(); gameElapsed = 0; lockedUsed2048 = false;
-        combo = 0; comboBest = 0; doodleJetpackUntil = 0; doodleBootsUntil = 0;
+        combo = 0; comboBest = 0; doodleJetpackUntil = 0; doodleBootsUntil = 0; doodlePropUntil = 0;
+        bestScoreRun = loadBest(type); recordCelebrated = false;
+        canvas.classList.remove('fx-overlay');
+        document.getElementById('hud-2048-tools').style.display = 'none';
 
         if (type === 'arrows') {
             startArrows();
@@ -551,32 +756,38 @@
         else if (type === 'doodle') {
             timeLeft = 0; doodleHeight = 0; doodleBestY = 0;
             doodleX = width / 2; doodleY = height - 150; doodleVy = DOODLE_START_VY;
-            doodleSquash = 1;
-            doodlePlatforms = [{x: width/2 - 35, y: height - 80, w: 70, type: 'normal'}];
+            doodleSquash = 1; doodleScale = 1; doodleShake = 0; doodleDead = null; doodleBonus = 0;
+            doodleMonsters = []; doodleHoles = []; doodleSection = null;
+            doodleLastHazardAlt = -1e9; doodleLastBootsAlt = -1e9;
+            const first = doodleMakePlatform(width / 2 - 35, height - 80, 'normal');
+            first.w = 70;
+            doodlePlatforms = [first]; doodleChain = [first];
             // Стартовую лесенку тоже строим цепочкой от предыдущей платформы,
             // иначе первые же прыжки могут оказаться нечестными.
-            for (let i = 1; i < 9; i++) {
-                let prev = doodlePlatforms[doodlePlatforms.length - 1];
-                doodlePlatforms.push(genDoodlePlatform(prev.y - 88, prev.x));
-            }
+            for (let i = 1; i < 9; i++) doodleSpawnNext(88);
             document.getElementById('ui-time-box').style.display = 'none';
             document.getElementById('ui-lives-box').style.display = 'none';
             document.getElementById('btn-ingame-exit').style.display = 'block';
             canvas.style.display = 'block'; grid2048.style.display = 'none';
-            gameReq = requestAnimationFrame(loopDoodle);
+            gameReq = requestAnimationFrame(loopDoodleSafe);
         }
         else if (type === '2048') {
             document.getElementById('ui-time-box').style.display = 'none';
             document.getElementById('ui-lives-box').style.display = 'none';
             document.getElementById('btn-ingame-exit').style.display = 'block';
-            canvas.style.display = 'none'; grid2048.style.display = 'block';
+            // Холст поверх сетки — только для частиц и всплывающих надписей
+            canvas.style.display = 'block'; canvas.classList.add('fx-overlay');
+            grid2048.style.display = 'block';
             init2048();
+            gameReq = requestAnimationFrame(loop2048FxSafe);
         }
-        
+
         updateHud();
     }
 
     function updateHud() {
+        clampScore();
+        checkRecord();
         document.getElementById('val-score').innerText = score;
         document.getElementById('val-time').innerText = timeLeft;
         // Math.max обязателен: String.repeat(-1) бросает RangeError и роняет
@@ -594,8 +805,22 @@
     }
 
     function gameOver() {
+        if (!isPlaying && document.getElementById('screen-gameover').classList.contains('active')) return; // повторный вызов (таймер + кнопка)
         isPlaying = false;
         cancelAnimationFrame(gameReq); clearInterval(timeInt);
+        clampScore();
+        hammerMode2048 = false; grid2048.classList.remove('hammer-mode');
+        document.getElementById('hud-2048-tools').style.display = 'none';
+        canvas.classList.remove('fx-overlay');
+        // Рекорд: показываем на экране итогов и запоминаем на устройстве
+        const recEl = document.getElementById('final-record');
+        if (score > bestScoreRun) {
+            if (bestScoreRun > 0) { recEl.innerText = `🏆 Новый рекорд! Было: ${bestScoreRun}`; recEl.style.display = 'block'; }
+            else recEl.style.display = 'none';
+            if (score > 0) saveBest(currentGame, score);
+        } else if (bestScoreRun > 0) {
+            recEl.innerText = `Твой рекорд: ${bestScoreRun}`; recEl.style.display = 'block';
+        } else recEl.style.display = 'none';
         canvas.style.display = 'none'; grid2048.style.display = 'none';
         document.getElementById('hud').style.display = 'none';
         document.getElementById('btn-ingame-exit').style.display = 'none';
@@ -683,8 +908,11 @@
             t.scale += ((t.life > 0.8 ? 1.15 : 1) - t.scale) * (1 - Math.exp(-14 * dt));
             ctx.globalAlpha = Math.max(0, Math.min(1, t.life * 1.6)); ctx.fillStyle = t.color;
             ctx.shadowBlur = 10; ctx.shadowColor = t.color;
-            ctx.save(); ctx.translate(t.x, t.y); ctx.scale(t.scale, t.scale);
             ctx.font = 'bold 18px Orbitron, "Segoe UI", Roboto, Arial, sans-serif'; ctx.textAlign = 'center';
+            // Не даём надписи у края экрана уехать за его пределы
+            const hw = ctx.measureText(t.text).width * t.scale / 2 + 6;
+            const tx = hw * 2 >= width ? width / 2 : Math.max(hw, Math.min(width - hw, t.x));
+            ctx.save(); ctx.translate(tx, t.y); ctx.scale(t.scale, t.scale);
             ctx.fillText(t.text, 0, 0); ctx.restore(); ctx.shadowBlur = 0;
             if(t.life <= 0) floatTexts.splice(i, 1);
         }
@@ -707,40 +935,178 @@
     };
 
     // --- ПРАЙС-ПРЫГУН (Doodle Jump) ---
-    function genDoodlePlatform(y, prevX) {
-        // Чем больше высота набрана (doodleHeight), тем реже обычные
-        // платформы и больше подвижных/ломающихся — забег усложняется
-        // естественным образом просто за счёт того, что ты выше.
-        let hardness = Math.min(doodleHeight / 4000, 1); // 0 в начале, 1 на большой высоте
-        let r = Math.random();
-        // Джетпак — редкий (для интриги), пружина чуть чаще на больших
-        // высотах (компенсирует растущую сложность — забавная награда,
-        // а не только штрафы).
-        let type = r > 0.985 ? 'jetpack'
-            : r > 0.965 ? 'boots'
-            : r > 0.925 - hardness * 0.04 ? 'coin'
-            : r > 0.87 - hardness * 0.06 ? 'spring'
-            : r > 0.73 - hardness * 0.15 ? 'moving'
-            : r > 0.63 - hardness * 0.10 ? 'break'
-            : 'normal';
-        // Горизонталь ограничена относительно ПРЕДЫДУЩЕЙ платформы. Раньше x
-        // брался случайно по всей ширине, и две платформы подряд могли
-        // оказаться у противоположных краёв: по высоте допрыгнуть можно, а
-        // долететь вбок за время подъёма — уже нет. Это и было «не допрыгнул».
-        let minX = 10, maxX = width - 74;
-        let base = (prevX === undefined || prevX === null) ? width / 2 : prevX;
-        let x = base + (Math.random() * 2 - 1) * DOODLE_MAX_DX;
-        x = Math.max(minX, Math.min(maxX, x));
-        return { x, y, w: 64, type, dir: Math.random() > 0.5 ? 1 : -1, broken: false };
+    // На какую высоту (px) поднимется центр кубика при стартовой скорости vy.
+    function doodleApex(vy) { return vy * vy / (2 * DOODLE_GRAVITY); }
+    // Насколько высоко подбросит с платформы данного типа. Ботинки тут не
+    // учитываем: пока они могут быть надеты, новые опасности не ставятся.
+    function doodleApexFor(p) {
+        if (p.type === 'spring') return doodleApex(DOODLE_JUMP_SPRING);
+        if (p.type === 'coin') return doodleApex(DOODLE_JUMP_COIN);
+        if (p.type === 'boots') return doodleApex(DOODLE_JUMP_NORMAL * DOODLE_BOOTS_MULTIPLIER);
+        return doodleApex(DOODLE_JUMP_NORMAL);
+    }
+    // Высота точки экрана y над стартом забега (px)
+    function doodleAlt(y) { return doodleHeight + height - y; }
+
+    function doodleMakePlatform(x, y, type) {
+        return { x, y, w: 64, type, dir: Math.random() > 0.5 ? 1 : -1, broken: false,
+                 minX: 10, maxX: width - 74, gone: false, fade: 1 };
     }
 
-    function drawDoodler(x, y, tilt, jetpackOn, squash, bootsOn) {
+    // Тип платформы. Чем выше (hardness), тем меньше обычных и больше
+    // подвижных/исчезающих/ловушек — сложность растёт сама собой.
+    function doodlePickType(hardness, alt) {
+        const r = Math.random();
+        let type = r > 0.986 ? 'jetpack'
+            : r > 0.968 ? 'propeller'
+            : r > 0.953 ? 'boots'
+            : r > 0.915 - hardness * 0.04 ? 'coin'
+            : r > 0.86 - hardness * 0.06 ? 'spring'
+            : r > 0.73 - hardness * 0.15 ? 'moving'
+            : r > 0.66 - hardness * 0.20 ? 'vanish'
+            : r > 0.58 - hardness * 0.26 ? 'break'
+            : 'normal';
+        if (type === 'vanish' && alt < DOODLE_VANISH_START) type = 'normal';
+        return type;
+    }
+
+    // Следующая платформа ОСНОВНОГО пути. Строим цепочкой от последней
+    // платформы пути: разрыв ≤ DOODLE_GAP_MAX, сдвиг вбок ≤ DOODLE_MAX_DX —
+    // так каждая следующая досягаема обычным прыжком.
+    function doodleSpawnNext(fixedGap) {
+        const anchor = doodleChain[doodleChain.length - 1];
+        if (!anchor) return;
+        const hardness = Math.min(doodleHeight / 4000, 1);
+        const gap = fixedGap || (DOODLE_GAP_MIN + Math.random() * (DOODLE_GAP_MAX - DOODLE_GAP_MIN) * (0.6 + hardness * 0.4));
+        const y = anchor.y - gap;
+        const alt = doodleAlt(y);
+        if (!fixedGap) doodleMaybeStartSection(alt, anchor);
+        let type = doodlePickType(hardness, alt);
+        // Ломкая платформа — ЛОВУШКА рядом с путём, а не его звено. Раньше она
+        // стояла прямо в цепочке: наступил — провалился, а до следующей могло
+        // быть до 300px при прыжке в 240px — забег становился непроходимым.
+        if (type === 'break') {
+            const dy = gap * (0.35 + Math.random() * 0.3);
+            doodlePlatforms.push(doodleMakePlatform(10 + Math.random() * Math.max(0, width - 84), anchor.y - dy, 'break'));
+            type = 'normal';
+        }
+        if (fixedGap && type !== 'coin' && type !== 'moving') type = 'normal';  // стартовая лесенка — спокойная
+        if (doodleSection && type === 'boots') type = 'normal';                 // ботинки сломали бы расчёт секции
+
+        let lo = Math.max(10, anchor.x - DOODLE_MAX_DX), hi = Math.min(width - 74, anchor.x + DOODLE_MAX_DX);
+        if (hi < lo) hi = lo;
+        let x, inRegion = false;
+        if (doodleSection) {
+            // Секция: уводим путь в «чистую» полосу, но не дальше DOODLE_MAX_DX за шаг
+            const s = doodleSection;
+            const l2 = Math.max(lo, s.rmin), h2 = Math.min(hi, s.rmax);
+            if (l2 <= h2) { x = l2 + Math.random() * (h2 - l2); inRegion = true; }
+            else x = anchor.x < s.rmin ? hi : lo;
+            if (!inRegion && type === 'moving') type = 'normal';  // переходный шаг — неподвижный
+        } else {
+            x = lo + Math.random() * (hi - lo);
+        }
+        const p = doodleMakePlatform(x, y, type);
+        if (type === 'moving' && doodleSection) {
+            // В секции подвижная платформа ездит только по чистой полосе
+            p.minX = Math.max(10, doodleSection.rmin); p.maxX = Math.min(width - 74, doodleSection.rmax);
+        }
+        doodlePlatforms.push(p); doodleChain.push(p);
+        if (type === 'boots') doodleLastBootsAlt = alt;
+        if (doodleSection) doodleSectionStep(p, inRegion);
+    }
+
+    // Задевает ли прямоугольник опасности «коридор» основного пути.
+    // Коридор пары соседних платформ пути P → Q: по ширине — от левого края
+    // до правого обеих платформ (+ полуширина кубика + запас), по высоте —
+    // от P до макушки кубика в верхней точке прыжка с P. Внутри коридора
+    // можно долететь от P до Q, никуда не сворачивая, поэтому опасность вне
+    // всех коридоров НИКОГДА не перекрывает единственный путь.
+    function doodleCorridorHit(box) {
+        const pad = DOODLE_PLAYER_HALF + DOODLE_SAFE_MARGIN;
+        for (let i = 0; i < doodleChain.length; i++) {
+            const P = doodleChain[i], Q = doodleChain[i + 1];
+            const pMin = P.type === 'moving' ? Math.min(P.x, P.minX) : P.x;
+            const pMax = (P.type === 'moving' ? Math.max(P.x, P.maxX) : P.x) + P.w;
+            let x0 = -Infinity, x1 = Infinity;   // следующей ещё нет — может оказаться где угодно
+            if (Q) {
+                const qMin = Q.type === 'moving' ? Math.min(Q.x, Q.minX) : Q.x;
+                const qMax = (Q.type === 'moving' ? Math.max(Q.x, Q.maxX) : Q.x) + Q.w;
+                x0 = Math.min(pMin, qMin) - pad; x1 = Math.max(pMax, qMax) + pad;
+            }
+            const y0 = P.y - 32 - doodleApexFor(P) - DOODLE_SAFE_MARGIN;
+            const y1 = P.y + DOODLE_SAFE_MARGIN;
+            if (box.x1 > x0 && box.x0 < x1 && box.y1 > y0 && box.y0 < y1) return true;
+        }
+        return false;
+    }
+
+    // Решаем, не начать ли «секцию с опасностью»: опасность у одного края,
+    // а путь на несколько платформ уводится к другому.
+    function doodleMaybeStartSection(alt, anchor) {
+        if (doodleSection || alt < DOODLE_MONSTER_START) return;
+        if (alt - doodleLastHazardAlt < DOODLE_HAZARD_COOLDOWN) return;
+        // В ботинках прыжки в 2,4 раза выше — коридоры для них не годятся.
+        // Поэтому пока ботинки надеты (и чуть после) — без новых опасностей,
+        // и над подобранными ботинками на экран вперёд — тоже.
+        if (doodleBootsUntil > 0 && performance.now() < doodleBootsUntil + DOODLE_BOOTS_HAZARD_GRACE) return;
+        if (alt - doodleLastBootsAlt < DOODLE_SPAWN_AHEAD + height + 200) return;
+        const k = Math.min(1, (alt - DOODLE_MONSTER_START) / DOODLE_HAZARD_RAMP);
+        if (Math.random() > DOODLE_HAZARD_CHANCE_MIN + (DOODLE_HAZARD_CHANCE_MAX - DOODLE_HAZARD_CHANCE_MIN) * k) return;
+        let kind = 'monster', variant = 'blob', hw, hh;
+        if (alt >= DOODLE_HOLE_START && Math.random() < DOODLE_HOLE_SHARE) {
+            kind = 'hole'; hw = hh = DOODLE_HOLE_R + 8;          // + светящийся вихрь вокруг
+        } else {
+            const pool = Object.keys(DOODLE_MONSTERS).filter(v => alt >= DOODLE_MONSTERS[v].minAlt);
+            variant = pool[Math.floor(Math.random() * pool.length)] || 'blob';
+            const m = DOODLE_MONSTERS[variant];
+            hw = m.r + m.range; hh = m.r + m.bob;
+        }
+        // Чаще ставим опасность напротив того места, где сейчас путь, —
+        // меньше переходных шагов, путь не мечется по экрану.
+        let side = (anchor.x + anchor.w / 2) < width / 2 ? 'R' : 'L';
+        if (Math.random() < 0.3) side = side === 'R' ? 'L' : 'R';
+        const edge = 6, pad = DOODLE_PLAYER_HALF + DOODLE_SAFE_MARGIN + 2;
+        const cx = side === 'L' ? edge + hw : width - edge - hw;
+        const rmin = side === 'L' ? cx + hw + pad : 10;
+        const rmax = side === 'L' ? width - 74 : cx - hw - pad - 64;
+        if (rmax - rmin < 40) return;   // экран слишком узкий под эту опасность
+        doodleSection = { kind, variant, cx, hw, hh, rmin, rmax, inRegion: [], count: 0 };
+    }
+
+    function doodleSectionStep(p, inRegion) {
+        const s = doodleSection;
+        s.count++;
+        if (inRegion) s.inRegion.push(p); else s.inRegion = [];  // нужны подряд идущие в чистой полосе
+        // Кандидаты — середины между соседними платформами в чистой полосе.
+        // Ставим в первое место, которое не задевает ни одного коридора пути.
+        for (let k = 0; k + 1 < s.inRegion.length; k++) {
+            const cy = (s.inRegion[k].y + s.inRegion[k + 1].y) / 2;
+            const box = { x0: s.cx - s.hw, x1: s.cx + s.hw, y0: cy - s.hh, y1: cy + s.hh };
+            if (!doodleCorridorHit(box)) { doodlePlaceHazard(s, cy); doodleSection = null; return; }
+        }
+        if (s.count >= DOODLE_SECTION_MAX) doodleSection = null;  // места не нашлось — значит, без опасности
+    }
+
+    function doodlePlaceHazard(s, cy) {
+        if (s.kind === 'hole') {
+            doodleHoles.push({ x: s.cx, y: cy, r: DOODLE_HOLE_R, rot: Math.random() * 6.28 });
+        } else {
+            const m = DOODLE_MONSTERS[s.variant];
+            doodleMonsters.push({ variant: s.variant, bx: s.cx, by: cy, x: s.cx, y: cy, r: m.r,
+                range: m.range, bob: m.bob, speed: m.speed, phase: Math.random() * 6.28, color: m.color,
+                dead: null, t: 0, vx: 0, vy: 0, rot: 0 });
+        }
+        doodleLastHazardAlt = doodleAlt(cy);
+    }
+
+    function drawDoodler(x, y, tilt, jetpackOn, squash, bootsOn, propOn, scale) {
         ctx.save(); ctx.translate(x, y); ctx.rotate(tilt * 0.25);
         // Сжатие/растяжение: при отскоке кубик приплющивается, в полёте
         // слегка вытягивается. Объём сохраняем (сжали по Y — расширили по X),
         // иначе выглядит как масштабирование, а не как упругость.
-        let sq = squash || 1;
-        ctx.scale(1 / sq, sq);
+        let sq = squash || 1, sc = (scale === undefined ? 1 : Math.max(0, scale));
+        ctx.scale(sc / sq, sc * sq);
         ctx.shadowBlur = 14; ctx.shadowColor = '#00ff88'; ctx.fillStyle = '#0f1f2e';
         ctx.strokeStyle = '#00ff88'; ctx.lineWidth = 2;
         ctx.beginPath(); ctx.roundRect(-18, -16, 36, 32, 10); ctx.fill(); ctx.stroke();
@@ -765,6 +1131,16 @@
             ctx.closePath(); ctx.fillStyle = '#ffcc00'; ctx.fill();
             ctx.shadowBlur = 0;
         }
+        if (propOn) {
+            // Кепка с пропеллером: лопасти «вращаются» (ширина пульсирует)
+            const spin = Math.abs(Math.sin(performance.now() / 1000 * 38));
+            ctx.fillStyle = '#ffcc00'; ctx.shadowBlur = 8; ctx.shadowColor = '#ffcc00';
+            ctx.beginPath(); ctx.arc(0, -16, 9, Math.PI, 0); ctx.closePath(); ctx.fill();
+            ctx.fillRect(-1.5, -31, 3, 7);
+            ctx.fillStyle = '#ff55cc';
+            ctx.beginPath(); ctx.ellipse(0, -31, 3 + 13 * spin, 2.5, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.shadowBlur = 0;
+        }
         ctx.restore();
     }
 
@@ -775,20 +1151,148 @@
         ctx.stroke(); ctx.shadowBlur = 0; ctx.restore();
     }
 
+    // Кепка с пропеллером, лежащая на платформе
+    function drawPropellerIcon(cx, y) {
+        ctx.save(); ctx.fillStyle = '#ffcc00'; ctx.shadowBlur = 8; ctx.shadowColor = '#ffcc00';
+        ctx.beginPath(); ctx.arc(cx, y - 1, 8, Math.PI, 0); ctx.closePath(); ctx.fill();
+        ctx.fillRect(cx - 1.5, y - 15, 3, 6);
+        ctx.fillStyle = '#ff55cc'; ctx.beginPath(); ctx.ellipse(cx, y - 15, 11, 2.5, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+    }
+
+    // Монстры рисуются простыми фигурами: «клякса» с одним глазом,
+    // летучая «мышь» с крыльями и рогатый «громила».
+    function drawDoodleMonster(m) {
+        ctx.save(); ctx.translate(m.x, m.y);
+        let sx = 1, sy = 1, alpha = 1;
+        if (m.dead === 'stomp') {
+            // Расплющили: сплющился в блин, потом падает и тает
+            const k = Math.min(1, m.t / 0.12);
+            sx = 1 + 0.65 * k; sy = 1 - 0.72 * k;
+            ctx.translate(0, m.r * 0.7 * k);
+            alpha = Math.max(0, 1 - Math.max(0, m.t - 0.3) / 0.6);
+        } else if (m.dead === 'knock') {
+            ctx.rotate(m.rot); alpha = Math.max(0, 1 - m.t / 1.2);
+        }
+        if (alpha <= 0) { ctx.restore(); return; }
+        ctx.globalAlpha = alpha; ctx.scale(sx, sy);
+        const r = m.r, col = m.color;
+        // Куда смотрит зрачок — на игрока
+        let lx = doodleX - m.x, ly = doodleY - m.y; const ll = Math.hypot(lx, ly) || 1; lx /= ll; ly /= ll;
+        ctx.lineWidth = 2; ctx.strokeStyle = col; ctx.shadowBlur = 12; ctx.shadowColor = col;
+        ctx.fillStyle = 'rgba(25,10,40,0.95)';
+        if (m.variant === 'bat') {
+            const flap = Math.sin(m.phase * 7) * 0.6;
+            for (const s of [-1, 1]) {
+                ctx.beginPath(); ctx.moveTo(s * r * 0.6, -2);
+                ctx.lineTo(s * r * 2.0, -r * 0.6 - flap * r); ctx.lineTo(s * r * 1.6, r * 0.2 - flap * r * 0.4);
+                ctx.lineTo(s * r * 1.1, r * 0.1); ctx.closePath(); ctx.fill(); ctx.stroke();
+            }
+            ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+            ctx.shadowBlur = 0; ctx.fillStyle = '#ff3366';
+            ctx.beginPath(); ctx.arc(-r * 0.38 + lx * 2, -r * 0.15 + ly * 2, 3, 0, Math.PI * 2);
+            ctx.arc(r * 0.38 + lx * 2, -r * 0.15 + ly * 2, 3, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#fff';
+            ctx.beginPath(); ctx.moveTo(-5, r * 0.35); ctx.lineTo(-3, r * 0.65); ctx.lineTo(-1, r * 0.35);
+            ctx.moveTo(1, r * 0.35); ctx.lineTo(3, r * 0.65); ctx.lineTo(5, r * 0.35); ctx.fill();
+        } else if (m.variant === 'brute') {
+            ctx.beginPath();
+            ctx.moveTo(-r * 0.7, -r * 0.6); ctx.lineTo(-r * 0.95, -r * 1.25); ctx.lineTo(-r * 0.3, -r * 0.8);
+            ctx.moveTo(r * 0.7, -r * 0.6); ctx.lineTo(r * 0.95, -r * 1.25); ctx.lineTo(r * 0.3, -r * 0.8);
+            ctx.stroke();
+            ctx.beginPath(); ctx.roundRect(-r * 1.1, -r * 0.85, r * 2.2, r * 1.7, r * 0.5); ctx.fill(); ctx.stroke();
+            ctx.shadowBlur = 0; ctx.fillStyle = '#fff';
+            ctx.beginPath(); ctx.arc(-r * 0.42, -r * 0.15, 5, 0, Math.PI * 2); ctx.arc(r * 0.42, -r * 0.15, 5, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#05050A';
+            ctx.beginPath(); ctx.arc(-r * 0.42 + lx * 2, -r * 0.15 + ly * 2, 2.4, 0, Math.PI * 2);
+            ctx.arc(r * 0.42 + lx * 2, -r * 0.15 + ly * 2, 2.4, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = col; ctx.beginPath();   // сердитые брови
+            ctx.moveTo(-r * 0.75, -r * 0.5); ctx.lineTo(-r * 0.2, -r * 0.3); ctx.moveTo(r * 0.75, -r * 0.5); ctx.lineTo(r * 0.2, -r * 0.3); ctx.stroke();
+            ctx.fillStyle = '#fff';  // зубы
+            ctx.beginPath();
+            for (let i = -2; i <= 2; i++) { ctx.moveTo(i * 6 - 3, r * 0.35); ctx.lineTo(i * 6, r * 0.62); ctx.lineTo(i * 6 + 3, r * 0.35); }
+            ctx.fill();
+        } else {
+            // «Клякса»: волнистый низ, один большой глаз
+            ctx.beginPath(); ctx.arc(0, 0, r, Math.PI, 0);
+            const wob = Math.sin(m.phase * 4) * 2;
+            ctx.lineTo(r, r * 0.6);
+            for (let i = 3; i >= 0; i--) ctx.quadraticCurveTo(-r + (i + 0.5) * r / 2, r * 0.95 + wob * (i % 2 ? 1 : -1), -r + i * r / 2, r * 0.6);
+            ctx.closePath(); ctx.fill(); ctx.stroke();
+            ctx.shadowBlur = 0; ctx.fillStyle = '#fff';
+            ctx.beginPath(); ctx.arc(0, -r * 0.2, r * 0.42, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#05050A';
+            ctx.beginPath(); ctx.arc(lx * r * 0.18, -r * 0.2 + ly * r * 0.18, r * 0.2, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.restore();
+    }
+
+    // Чёрная дыра: тёмное ядро и закрученные светящиеся рукава
+    function drawDoodleHole(h) {
+        ctx.save(); ctx.translate(h.x, h.y);
+        const g = ctx.createRadialGradient(0, 0, 2, 0, 0, h.r + 10);
+        g.addColorStop(0, '#000'); g.addColorStop(0.6, 'rgba(20,0,40,0.95)'); g.addColorStop(1, 'rgba(122,60,255,0)');
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, h.r + 10, 0, Math.PI * 2); ctx.fill();
+        ctx.rotate(h.rot); ctx.lineWidth = 2; ctx.shadowBlur = 10; ctx.shadowColor = '#b57cff';
+        for (let i = 0; i < 3; i++) {
+            ctx.rotate(Math.PI * 2 / 3);
+            ctx.strokeStyle = i % 2 ? '#b57cff' : '#7a3cff';
+            ctx.beginPath(); ctx.arc(h.r * 0.35, 0, h.r * 0.75, -0.3, 1.9); ctx.stroke();
+        }
+        ctx.shadowBlur = 0; ctx.fillStyle = '#000';
+        ctx.beginPath(); ctx.arc(0, 0, h.r * 0.45, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+    }
+
+    // Гибель: короткая анимация, вспышка и тряска — потом экран итогов.
+    function doodleDie(kind, hx, hy) {
+        if (doodleDead) return;
+        doodleDead = { kind, t: 0, hx: hx || doodleX, hy: hy || doodleY };
+        doodleShake = kind === 'fall' ? 10 : 14;
+        flashScreen(kind === 'hole' ? '#7a3cff' : '#ff3366', 0.45);
+        playSynth('hit'); shakeScreen();
+        doodleJetpackUntil = 0; doodlePropUntil = 0; doodleBootsUntil = 0;
+        if (kind === 'monster') { doodleVy = Math.max(doodleVy, 120); createParticle(doodleX, doodleY, '#ff3366', 14, 520, 3); }
+        resetCombo();
+    }
+
+    // Проверка касания кругом радиуса rad вдоль пути кубика за кадр (а не
+    // только в конечной точке): на слабом телефоне за кадр пролетаем десятки
+    // пикселей и могли бы «проскочить» сквозь монстра или дыру.
+    function doodleSweepHit(x0, y0, x1, y1, cx, cy, rad) {
+        const steps = Math.max(1, Math.min(30, Math.ceil(Math.abs(y1 - y0) / 8)));
+        for (let s = 1; s <= steps; s++) {
+            const px = x0 + (x1 - x0) * s / steps, py = y0 + (y1 - y0) * s / steps;
+            const dx = px - cx, dy = py - cy;
+            if (dx * dx + dy * dy < rad * rad) return { x: px, y: py };
+        }
+        return null;
+    }
+
     function loopDoodle(time) {
         if(!isPlaying) return;
-        let dt = (time - lastTime) / 1000; lastTime = time; if(dt > 0.1) dt = 0.1;
+        let dt = (time - lastTime) / 1000; lastTime = time; if(dt > 0.1) dt = 0.1; if (!(dt > 0)) dt = 0;
         ctx.clearRect(0, 0, width, height); drawBackground(dt);
+        const nowMs = performance.now();
+
+        // Тряска камеры — затухает экспоненциально по dt
+        doodleShake *= Math.exp(-DOODLE_SHAKE_DECAY * dt);
+        if (doodleShake < 0.3) doodleShake = 0;
+        ctx.save();
+        if (doodleShake) ctx.translate((Math.random() * 2 - 1) * doodleShake, (Math.random() * 2 - 1) * doodleShake);
 
         // Горизонталь и наклон — через dt, а не «за кадр». Раньше при
         // просадке FPS кубик объективно МЕДЛЕННЕЕ ехал вбок и не успевал
         // долететь до платформы, хотя по высоте прыжка хватало.
         // Форма 1-exp(-k*dt) — это то же экспоненциальное сглаживание,
         // но одинаковое на любом фреймрейте.
-        let hLerp = 1 - Math.exp(-DOODLE_H_SPEED * dt);
-        doodleTilt += ((playerX - doodleX > 0 ? 0.6 : -0.6) - doodleTilt) * (1 - Math.exp(-13 * dt));
-        doodleX += (playerX - doodleX) * hLerp;
-        if (doodleX < -20) doodleX = width + 20; if (doodleX > width + 20) doodleX = -20;
+        if (!doodleDead) {
+            let hLerp = 1 - Math.exp(-DOODLE_H_SPEED * dt);
+            doodleTilt += ((playerX - doodleX > 0 ? 0.6 : -0.6) - doodleTilt) * (1 - Math.exp(-13 * dt));
+            doodleX += (playerX - doodleX) * hLerp;
+            if (doodleX < -20) doodleX = width + 20; if (doodleX > width + 20) doodleX = -20;
+        }
+        let prevX = doodleX, prevY = doodleY;
 
         // ВАЖНО: физика здесь считается через dt (реальные секунды), а не
         // "за кадр" — иначе на слабом телефоне или при просадке FPS игрок
@@ -797,38 +1301,60 @@
         // оказывается недостижимой. Числа подобраны так, чтобы при dt~1/60с
         // давать точно ту же высоту прыжка, что была раньше при 60 FPS —
         // но теперь одинаковую на любом устройстве.
-        let jetpackOn = performance.now() < doodleJetpackUntil;
-        let bootsOn = performance.now() < doodleBootsUntil;
-        if (jetpackOn) {
-            doodleVy = DOODLE_JETPACK_VY;
-            if (Math.random() < 0.6) createParticle(doodleX - 21, doodleY + 22, Math.random() < 0.5 ? '#ff8800' : '#ffcc00', 2, 260, 3);
+        let jetpackOn = !doodleDead && nowMs < doodleJetpackUntil;
+        let propOn = !doodleDead && !jetpackOn && nowMs < doodlePropUntil;
+        let flying = jetpackOn || propOn;   // в полёте — сквозь платформы, монстров сбиваем, дыры не тянут
+        let bootsOn = !doodleDead && nowMs < doodleBootsUntil;
+        if (doodleDead && doodleDead.kind === 'hole') {
+            // Затягивает в центр дыры, крутит и уменьшает
+            const k = 1 - Math.exp(-10 * dt);
+            doodleX += (doodleDead.hx - doodleX) * k; doodleY += (doodleDead.hy - doodleY) * k;
+            doodleTilt += 16 * dt;
+            doodleScale = Math.max(0, 1 - doodleDead.t / DOODLE_HOLE_SUCK_TIME);
         } else {
-            doodleVy += DOODLE_GRAVITY * dt;
+            if (jetpackOn) {
+                doodleVy = DOODLE_JETPACK_VY;
+                if (Math.random() < 0.6) createParticle(doodleX - 21, doodleY + 22, Math.random() < 0.5 ? '#ff8800' : '#ffcc00', 2, 260, 3);
+            } else if (propOn) {
+                doodleVy = DOODLE_PROPELLER_VY;
+                if (Math.random() < 0.25) createParticle(doodleX, doodleY - 30, 'rgba(255,204,0,0.8)', 1, 200, 2);
+            } else {
+                doodleVy += DOODLE_GRAVITY * dt;
+            }
+            doodleY += doodleVy * dt;
+            if (doodleDead && doodleDead.kind === 'monster') doodleTilt += 10 * dt;  // кувыркается вниз
         }
-        doodleY += doodleVy * dt;
 
         // Сжатие пружинит обратно к 1 за ~0.15с — заметно, но не мешает.
         doodleSquash += (1 - doodleSquash) * Math.min(dt * 11, 1);
 
-        if (doodleY < height * 0.45 && doodleVy < 0) {
+        if (!doodleDead && doodleY < height * 0.45 && doodleVy < 0) {
             let shift = height * 0.45 - doodleY;
-            doodleY = height * 0.45;
-            doodleHeight += shift; score = Math.floor(doodleHeight);
+            doodleY = height * 0.45; prevY += shift;
+            doodleHeight += shift;
             for (let p of doodlePlatforms) p.y += shift;
-            updateHud();
+            for (let m of doodleMonsters) { m.y += shift; m.by += shift; }
+            for (let h of doodleHoles) h.y += shift;
         }
 
         for (let i = doodlePlatforms.length - 1; i >= 0; i--) {
             let p = doodlePlatforms[i];
             if (p.type === 'moving') {
                 let mvSpeed = 60 + Math.min(doodleHeight / 4000, 1) * 50;
-                p.x += p.dir * mvSpeed * dt; if (p.x < 10 || p.x > width - 74) p.dir *= -1;
+                p.x += p.dir * mvSpeed * dt;
+                if (p.x < p.minX) { p.x = p.minX; p.dir = 1; } else if (p.x > p.maxX) { p.x = p.maxX; p.dir = -1; }
             }
-            if (p.y > height + 40) { doodlePlatforms.splice(i, 1); continue; }
+            if (p.y > height + 40) {
+                doodlePlatforms.splice(i, 1);
+                const ci = doodleChain.indexOf(p);
+                if (ci >= 0 && doodleChain.length > 1) doodleChain.splice(ci, 1);
+                continue;
+            }
 
             let color = p.type === 'coin' ? '#ffcc00' : p.type === 'moving' ? '#00ccff'
                 : p.type === 'break' ? '#ff3366' : p.type === 'spring' ? '#00ccff'
-                : p.type === 'jetpack' ? '#ff8800' : p.type === 'boots' ? '#00ccff' : '#00ff88';
+                : p.type === 'jetpack' ? '#ff8800' : p.type === 'boots' ? '#00ccff'
+                : p.type === 'propeller' ? '#ffcc00' : p.type === 'vanish' ? '#e6f1ff' : '#00ff88';
             if (p.type === 'break' && p.broken) {
                 // Сломанная платформа не исчезает, а разламывается пополам и
                 // падает, кувыркаясь и тая, — видно, что именно произошло.
@@ -847,28 +1373,50 @@
                     }
                     ctx.globalAlpha = 1;
                 }
-            }
-            if (!(p.type === 'break' && p.broken)) {
+            } else if (p.type === 'vanish' && p.gone) {
+                // Исчезающая: после отскока расплывается и тает
+                p.fade = Math.max(0, p.fade - DOODLE_VANISH_FADE * dt);
+                if (p.fade > 0) {
+                    const grow = (1 - p.fade) * 14;
+                    ctx.globalAlpha = p.fade; ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.setLineDash([6, 4]);
+                    ctx.beginPath(); ctx.roundRect(p.x - grow, p.y - grow * 0.3, p.w + grow * 2, 14, 7); ctx.stroke();
+                    ctx.setLineDash([]); ctx.globalAlpha = 1;
+                }
+            } else {
                 ctx.shadowBlur = 10; ctx.shadowColor = color; ctx.fillStyle = 'rgba(10,15,30,0.85)';
                 ctx.strokeStyle = color; ctx.lineWidth = 2;
+                if (p.type === 'vanish') {
+                    // Пунктир и лёгкое мерцание — сразу видно, что «одноразовая»
+                    ctx.globalAlpha = 0.7 + 0.3 * Math.sin(time / 1000 * 5 + p.x);
+                    ctx.setLineDash([6, 4]); ctx.fillStyle = 'rgba(230,241,255,0.08)';
+                }
                 ctx.beginPath(); ctx.roundRect(p.x, p.y, p.w, 14, 7); ctx.fill(); ctx.stroke(); ctx.shadowBlur = 0;
+                ctx.setLineDash([]); ctx.globalAlpha = 1;
                 if (p.type === 'spring') drawSpringIcon(p.x, p.y, p.w);
                 if (p.type === 'jetpack') { ctx.fillStyle = '#ff8800'; ctx.font = '16px Arial'; ctx.textAlign = 'center'; ctx.fillText('🎒', p.x + p.w/2, p.y + 11); }
                 if (p.type === 'boots') { ctx.fillStyle = '#00ccff'; ctx.font = '16px Arial'; ctx.textAlign = 'center'; ctx.fillText('🥾', p.x + p.w/2, p.y + 11); }
+                if (p.type === 'propeller') drawPropellerIcon(p.x + p.w / 2, p.y);
             }
 
-            // Пока летим на джетпаке — сквозь платформы, коллизий не считаем.
-            if (!jetpackOn && doodleVy > 0 && !p.broken && doodleX > p.x - 10 && doodleX < p.x + p.w + 10 &&
-                doodleY + 16 > p.y && doodleY + 16 < p.y + 20) {
+            // Касание платформы — по ПУТИ ног за кадр, а не по окну в 20px:
+            // на 10–15 FPS за кадр пролетаем 50–80px и раньше проваливались
+            // сквозь платформу. В полёте и после гибели коллизий нет.
+            const feet = doodleY + 16, prevFeet = prevY + 16;
+            if (!flying && !doodleDead && doodleVy > 0 && !p.broken && !p.gone &&
+                doodleX > p.x - 10 && doodleX < p.x + p.w + 10 &&
+                feet >= p.y && prevFeet <= p.y + 20) {
                 if (p.type === 'break') {
                     p.broken = true; playSynth('hit'); resetCombo();
                     createParticle(p.x + p.w / 2, p.y + 7, '#ff3366', 8, 420, 2.5);
                 }
                 else if (p.type === 'jetpack') {
-                    doodleJetpackUntil = performance.now() + DOODLE_JETPACK_DURATION;
+                    doodleJetpackUntil = nowMs + DOODLE_JETPACK_DURATION; doodlePropUntil = 0;
                     playSynth('good'); createFloatingText(doodleX, doodleY, '🎒 ДЖЕТПАК!', '#ff8800');
+                } else if (p.type === 'propeller') {
+                    doodlePropUntil = nowMs + DOODLE_PROPELLER_DURATION;
+                    playSynth('good'); createFloatingText(doodleX, doodleY, '🧢 ПРОПЕЛЛЕР!', '#ffcc00');
                 } else if (p.type === 'boots') {
-                    doodleBootsUntil = performance.now() + DOODLE_BOOTS_DURATION;
+                    doodleBootsUntil = nowMs + DOODLE_BOOTS_DURATION;
                     doodleVy = DOODLE_JUMP_NORMAL * DOODLE_BOOTS_MULTIPLIER;
                     doodleSquash = 0.62; playSynth('good');
                     createFloatingText(doodleX, doodleY, '🥾 ПРУЖИНЫ 10с!', '#00ccff');
@@ -878,45 +1426,110 @@
                              : DOODLE_JUMP_NORMAL;
                     // Пружинные ботинки усиливают ЛЮБОЙ отскок, пока надеты
                     doodleVy = bootsOn ? base * DOODLE_BOOTS_MULTIPLIER : base;
+                    doodleY = p.y - 16;   // ставим ровно на платформу (после «проскока» за кадр)
                     // Чем сильнее оттолкнулись — тем заметнее приплющило
                     doodleSquash = p.type === 'spring' ? 0.55 : (bootsOn ? 0.62 : 0.72);
                     playSynth('jump');
                     createDust(doodleX, p.y, color);
                     if (p.type === 'coin') {
                         bonusCoins += 1; bumpCombo(doodleX, doodleY - 20);
-                        let gained = Math.round(1 * comboMult());
                         createFloatingText(doodleX, doodleY, `+coin${combo>=3 ? ' x'+combo : ''}`, '#ffcc00');
                     } else if (p.type === 'spring') {
                         createFloatingText(doodleX, doodleY, 'БОИНГ!', '#00ccff');
                     } else {
+                        if (p.type === 'vanish') { p.gone = true; createParticle(p.x + p.w / 2, p.y + 7, '#e6f1ff', 8, 300, 2); }
                         resetCombo(); // приземлился на обычную платформу — цепочка монет прервалась
                     }
                 }
             }
         }
 
-        while (doodlePlatforms.length < 9) {
-            // Берём именно САМУЮ ВЕРХНЮЮ платформу: от неё игрок и будет
-            // прыгать дальше, поэтому и разрыв, и сдвиг вбок считаем от неё.
-            let top = doodlePlatforms.reduce((a, b) => (a.y < b.y ? a : b));
-            let hardness = Math.min(doodleHeight / 4000, 1);
-            let gap = DOODLE_GAP_MIN + Math.random() * (DOODLE_GAP_MAX - DOODLE_GAP_MIN) * (0.6 + hardness * 0.4);
-            doodlePlatforms.push(genDoodlePlatform(top.y - gap, top.x));
+        // --- Монстры ---
+        for (let i = doodleMonsters.length - 1; i >= 0; i--) {
+            const m = doodleMonsters[i];
+            if (m.y > height + 80 || (m.dead && m.t > 1.4)) { doodleMonsters.splice(i, 1); continue; }
+            if (!m.dead) {
+                m.phase += m.speed * dt;
+                m.x = m.bx + Math.sin(m.phase) * m.range;
+                m.y = m.by + Math.sin(m.phase * 1.7) * m.bob;
+            } else {
+                m.t += dt;
+                if (m.dead === 'knock') { m.vy += DOODLE_GRAVITY * dt; m.x += m.vx * dt; m.y += m.vy * dt; m.rot += 9 * dt; }
+                else if (m.t > 0.3) { m.vy += DOODLE_GRAVITY * dt; m.y += m.vy * dt; }
+            }
+            drawDoodleMonster(m);
+            if (m.dead || doodleDead) continue;
+            const hit = doodleSweepHit(prevX, prevY, doodleX, doodleY, m.x, m.y, m.r + 15);
+            if (!hit) continue;
+            if (flying) {
+                // В полёте монстра просто сносит в сторону
+                m.dead = 'knock'; m.t = 0; m.vx = (m.x < doodleX ? -1 : 1) * 280; m.vy = -320;
+                doodleBonus += DOODLE_MONSTER_KNOCK_POINTS; doodleShake = Math.max(doodleShake, 5);
+                playSynth('stomp'); haptic('light');
+                createFloatingText(m.x, m.y - 20, `+${DOODLE_MONSTER_KNOCK_POINTS}`, '#ffcc00');
+            } else if (doodleVy > 0 && hit.y < m.y - m.r * 0.25) {
+                // Сверху и в падении — растоптал!
+                m.dead = 'stomp'; m.t = 0; m.vy = 0;
+                doodleY = Math.min(hit.y, m.y - m.r - 4);
+                doodleVy = DOODLE_JUMP_MONSTER; doodleSquash = 0.58;
+                doodleBonus += DOODLE_MONSTER_POINTS;
+                doodleShake = Math.max(doodleShake, 7); flashScreen('#ffffff', 0.16);
+                playSynth('stomp'); haptic('medium');
+                createParticle(m.x, m.y, m.color, 16, 560, 3);
+                createFloatingText(m.x, m.y - 26, `💥 +${DOODLE_MONSTER_POINTS}`, '#ffcc00');
+            } else {
+                doodleDie('monster', m.x, m.y);
+            }
         }
 
-        drawDoodler(doodleX, doodleY, doodleTilt, jetpackOn, doodleSquash, bootsOn);
-        // Остаток действия ботинок — иначе непонятно, когда пружины кончатся
+        // --- Чёрные дыры ---
+        for (let i = doodleHoles.length - 1; i >= 0; i--) {
+            const h = doodleHoles[i];
+            if (h.y > height + 80) { doodleHoles.splice(i, 1); continue; }
+            h.rot += 2.6 * dt;
+            drawDoodleHole(h);
+            if (!doodleDead && !flying && doodleSweepHit(prevX, prevY, doodleX, doodleY, h.x, h.y, h.r + 6)) {
+                doodleDie('hole', h.x, h.y);
+            }
+        }
+
+        // Достраиваем путь вперёд, пока его верх ниже, чем DOODLE_SPAWN_AHEAD над экраном
+        for (let guard = 0; guard < 40 && doodleChain.length &&
+             doodleChain[doodleChain.length - 1].y > -DOODLE_SPAWN_AHEAD; guard++) doodleSpawnNext();
+
+        if (!(doodleDead && doodleDead.kind === 'fall'))
+            drawDoodler(doodleX, doodleY, doodleTilt, jetpackOn, doodleSquash, bootsOn, propOn, doodleScale);
+        updateAndDrawParticles(dt);
+        ctx.restore();   // конец тряски — подписи ниже не трясутся
+
+        // Остаток действия бонусов — иначе непонятно, когда кончатся
+        ctx.font = 'bold 14px Rajdhani, "Segoe UI", Roboto, Arial, sans-serif'; ctx.textAlign = 'left';
         if (bootsOn) {
-            let left = (doodleBootsUntil - performance.now()) / 1000;
-            ctx.fillStyle = '#00ccff'; ctx.font = 'bold 14px Rajdhani, "Segoe UI", Roboto, Arial, sans-serif'; ctx.textAlign = 'left';
+            let left = Math.max(0, (doodleBootsUntil - nowMs) / 1000);
+            ctx.fillStyle = '#00ccff';
             ctx.fillText(`🥾 ПРУЖИНЫ ${left.toFixed(1)}с`, 14, height - 20);
         }
-        updateAndDrawParticles(dt);
+        if (propOn) {
+            let left = Math.max(0, (doodlePropUntil - nowMs) / 1000);
+            ctx.fillStyle = '#ffcc00';
+            ctx.fillText(`🧢 ПРОПЕЛЛЕР ${left.toFixed(1)}с`, 14, height - (bootsOn ? 40 : 20));
+        }
 
-        if (doodleY > height + 60) { playSynth('hit'); gameOver(); return; }
+        // Очки: высота / DOODLE_PX_PER_POINT + бонусы за монстров
+        const newScore = Math.floor(doodleHeight / DOODLE_PX_PER_POINT) + doodleBonus;
+        if (newScore !== score) { score = newScore; updateHud(); }
 
-        gameReq = requestAnimationFrame(loopDoodle);
+        if (!doodleDead && doodleY > height + 60) doodleDie('fall');
+        if (doodleDead) {
+            doodleDead.t += dt;
+            const T = doodleDead.kind === 'hole' ? DOODLE_HOLE_SUCK_TIME
+                    : doodleDead.kind === 'monster' ? DOODLE_DEATH_TIME : DOODLE_FALL_DEATH_TIME;
+            if (doodleDead.t >= T) { gameOver(); return; }
+        }
+
+        gameReq = requestAnimationFrame(loopDoodleSafe);
     }
+    const loopDoodleSafe = safeFrame(loopDoodle);
 
     // ===== RESALE 2048 =====
     // Каждая плитка — объект {id, v, r, c} со своим DOM-элементом. Ход
@@ -924,16 +1537,50 @@
     // плитка куда поехала, и её можно плавно довезти анимацией.
     let tiles2048 = [], tileSeq = 0, moving2048 = false;
     const SLIDE_MS = 120;
+    // Очки. Раньше слияние давало номинал×15 — даже простой бот за 30 секунд
+    // набирал ~50 тыс. при серверном потолке 40 тыс. («накрутка»). Теперь
+    // номинал×1.5 + маленький бонус за комбо: партия до плитки 1024 — это
+    // примерно 15–20 тыс., до 2048 — около 35 тыс.
+    const T2048_POINTS_PER_VALUE = 1.5;
+    const T2048_COMBO_POINTS = 3;
+    // Шанс «четвёрки» растёт с очками. Делитель пересчитан под новый масштаб
+    // очков, чтобы сложность по ходу партии росла ровно как раньше.
+    const T2048_FOUR_RAMP = 40000 * T2048_POINTS_PER_VALUE / 15;
+    const T2048_BIG_TILE = 256;            // от этого номинала — вспышка и сильный пульс
+    const T2048_HAMMER_EVERY = 5;          // столько ходов подряд со слиянием → +1 молоток
+    const T2048_HAMMER_MAX = 3;            // больше трёх молотков не копится
+    const T2048_UNDO_TILES = [512, 1024];  // впервые собрал такую плитку → +1 отмена хода
+    let hammers2048 = 0, hammerProgress2048 = 0, undos2048 = 0, history2048 = null;
+    let hammerMode2048 = false, undoGranted2048 = {}, maxTile2048 = 0;
+    let lastTouchTap2048 = 0, gameOverTimer2048 = null;
 
     function layout2048() {
         const size = grid2048.clientWidth || Math.min(window.innerWidth * 0.88, 370);
         const pad = 10, gap = 10;
         const cell = (size - pad * 2 - gap * 3) / 4;
-        return { cell, pos: (i) => pad + i * (cell + gap) };
+        return { cell, pad, gap, pos: (i) => pad + i * (cell + gap) };
+    }
+
+    // Центр клетки в координатах экрана (там же рисует холст с частицами)
+    function cellCenter2048(r, c) {
+        const rect = grid2048.getBoundingClientRect(), L = layout2048();
+        return { x: rect.left + L.pos(c) + L.cell / 2, y: rect.top + L.pos(r) + L.cell / 2 };
+    }
+    // Какая клетка под точкой экрана (или null, если мимо)
+    function cellFromPoint2048(clientX, clientY) {
+        const rect = grid2048.getBoundingClientRect(), L = layout2048();
+        const x = clientX - rect.left - L.pad + L.gap / 2, y = clientY - rect.top - L.pad + L.gap / 2;
+        const c = Math.floor(x / (L.cell + L.gap)), r = Math.floor(y / (L.cell + L.gap));
+        if (r < 0 || r > 3 || c < 0 || c > 3) return null;
+        return { r, c };
     }
 
     function init2048() {
         tiles2048 = []; tileSeq = 0; moving2048 = false;
+        hammers2048 = 0; hammerProgress2048 = 0; undos2048 = 0; history2048 = null;
+        hammerMode2048 = false; undoGranted2048 = {}; maxTile2048 = 0;
+        clearTimeout(gameOverTimer2048); gameOverTimer2048 = null;
+        grid2048.classList.remove('hammer-mode');
         grid2048.innerHTML = '';
         const L = layout2048();
         for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) {
@@ -943,17 +1590,29 @@
         }
         add2048(); add2048();
         board2048 = boardValues();
+        document.getElementById('hud-2048-tools').style.display = 'flex';
+        render2048Tools();
 
         let startX = 0, startY = 0;
-        grid2048.ontouchstart = e => { startX = e.touches[0].clientX; startY = e.touches[0].clientY; };
+        grid2048.ontouchstart = e => { if (e.touches[0]) { startX = e.touches[0].clientX; startY = e.touches[0].clientY; } };
         grid2048.ontouchend = e => {
             if (!isPlaying || currentGame !== '2048') return;
-            let dx = e.changedTouches[0].clientX - startX, dy = e.changedTouches[0].clientY - startY;
+            const t = e.changedTouches && e.changedTouches[0]; if (!t) return;
+            let dx = t.clientX - startX, dy = t.clientY - startY;
+            // Короткий тап (без свайпа) — выбор плитки для молотка
+            if (Math.abs(dx) < 12 && Math.abs(dy) < 12) { lastTouchTap2048 = Date.now(); tap2048(t.clientX, t.clientY); return; }
             if (Math.abs(dx) > 30 && Math.abs(dx) > Math.abs(dy)) move2048(dx > 0 ? 'R' : 'L');
             else if (Math.abs(dy) > 30 && Math.abs(dy) > Math.abs(dx)) move2048(dy > 0 ? 'D' : 'U');
         };
+        // Мышь на компьютере. На телефоне после touchend браузер присылает ещё
+        // и click — его пропускаем, тап уже обработан.
+        grid2048.onclick = e => {
+            if (Date.now() - lastTouchTap2048 < 700) return;
+            tap2048(e.clientX, e.clientY);
+        };
         window.onkeydown = e => {
             if (!isPlaying || currentGame !== '2048') return;
+            if (e.key === 'Escape' && hammerMode2048) { toggle2048Hammer(); return; }
             const k = { ArrowLeft: 'L', ArrowRight: 'R', ArrowUp: 'U', ArrowDown: 'D' }[e.key];
             if (k) move2048(k);
         };
@@ -975,13 +1634,13 @@
             grid2048.appendChild(t.el);
         }
         const conf = tMap[t.v] || { n: 'MAX', c: '#0f1a26', tc: '#00ff88', svg: '' };
-        t.el.innerHTML = `<div class="tile-inner" style="background:${conf.c}; border:1px solid ${conf.tc}; box-shadow:0 0 12px ${conf.tc}30;">
+        t.el.innerHTML = `<div class="tile-inner" style="background:${conf.c}; border:1px solid ${conf.tc}; box-shadow:0 0 12px ${conf.tc}30; color:${conf.tc};">
             <svg class="tile-icon" style="color:${conf.tc}" viewBox="0 0 24 24">${conf.svg}</svg>
             <div class="tile-name" style="color:${conf.tc}">${conf.n}</div>
-            <div class="tile-val">${t.v}</div></div>`;
+            <div class="tile-val" style="color:#fff">${t.v}</div></div>`;
         t.el.style.transform = `translate(${L.pos(t.c)}px, ${L.pos(t.r)}px)`;
-        if (cls) { t.el.classList.remove('tile-pop', 'tile-merged'); void t.el.offsetWidth; t.el.classList.add(cls); }
-        t.el.style.zIndex = cls === 'tile-merged' ? 3 : 2;
+        if (cls) { t.el.classList.remove('tile-pop', 'tile-merged', 'tile-merged-big'); void t.el.offsetWidth; t.el.classList.add(cls); }
+        t.el.style.zIndex = (cls === 'tile-merged' || cls === 'tile-merged-big') ? 3 : 2;
         requestAnimationFrame(() => { if (t.el) t.el.style.transition = ''; });
     }
 
@@ -991,21 +1650,104 @@
         if (!empty.length) return;
         // Со временем шанс невыгодной «четвёрки» растёт — под конец забега
         // сложнее держать доску расчищенной.
-        const fourChance = Math.min(0.1 + score / 40000, 0.35);
+        const fourChance = Math.min(0.1 + score / T2048_FOUR_RAMP, 0.35);
         const [r, c] = empty[Math.floor(Math.random() * empty.length)];
         const t = { id: ++tileSeq, v: Math.random() > fourChance ? 2 : 4, r, c };
         tiles2048.push(t);
         renderTile(t, 'tile-pop');
     }
 
+    // Кнопки бонусов в HUD: число зарядов, прогресс до следующего молотка
+    function render2048Tools(gained) {
+        const bh = document.getElementById('btn-hammer'), bu = document.getElementById('btn-undo');
+        if (!bh || !bu) return;
+        document.getElementById('cnt-hammer').innerText = hammers2048;
+        document.getElementById('cnt-undo').innerText = undos2048;
+        bh.disabled = hammers2048 <= 0; bu.disabled = undos2048 <= 0;
+        bh.classList.toggle('armed', hammerMode2048);
+        const prog = hammers2048 >= T2048_HAMMER_MAX ? 100 : Math.round(hammerProgress2048 / T2048_HAMMER_EVERY * 100);
+        document.getElementById('prog-hammer').style.width = Math.max(0, Math.min(100, prog)) + '%';
+        const el = gained === 'hammer' ? bh : gained === 'undo' ? bu : null;
+        if (el) { el.classList.remove('gain'); void el.offsetWidth; el.classList.add('gain'); }
+    }
+
+    function toggle2048Hammer() {
+        if (!isPlaying || currentGame !== '2048' || moving2048) return;
+        if (!hammerMode2048 && hammers2048 <= 0) return;
+        hammerMode2048 = !hammerMode2048;
+        grid2048.classList.toggle('hammer-mode', hammerMode2048);
+        if (hammerMode2048) {
+            const rect = grid2048.getBoundingClientRect();
+            createFloatingText(rect.left + rect.width / 2, rect.top - 8, '🔨 Тапни по плитке', '#ffcc00');
+        }
+        render2048Tools();
+    }
+
+    function tap2048(clientX, clientY) {
+        if (!hammerMode2048) return;
+        const cell = cellFromPoint2048(clientX, clientY);
+        if (cell) use2048Hammer(cell.r, cell.c);
+    }
+
+    // Молоток: разбить одну выбранную плитку. Возвращает true, если разбили.
+    function use2048Hammer(r, c) {
+        if (!isPlaying || currentGame !== '2048' || moving2048) return false;
+        if (hammers2048 <= 0) { hammerMode2048 = false; grid2048.classList.remove('hammer-mode'); render2048Tools(); return false; }
+        if (!(r >= 0 && r <= 3 && c >= 0 && c <= 3)) return false;
+        const t = tileAt(r, c), ctr = cellCenter2048(r, c);
+        if (!t) { createFloatingText(ctr.x, ctr.y, 'Пусто', '#8892b0'); return false; }
+        if (tiles2048.filter(q => !q.dead).length <= 1) { createFloatingText(ctr.x, ctr.y, 'Последняя!', '#8892b0'); return false; }
+        hammers2048--; hammerMode2048 = false; grid2048.classList.remove('hammer-mode');
+        tiles2048 = tiles2048.filter(q => q !== t);
+        const el = t.el; t.el = null; t.dead = true;
+        if (el) { el.classList.add('tile-smash'); setTimeout(() => el.remove(), 240); }
+        const conf = tMap[t.v] || { tc: '#00ff88' };
+        createParticle(ctr.x, ctr.y, conf.tc, 18, 760, 3.2);
+        createParticle(ctr.x, ctr.y, '#ffcc00', 8, 520, 2);
+        playSynth('stomp'); shakeScreen();
+        history2048 = null;  // удар молотком не отменяется — иначе отмена «вернула бы» плитку
+        board2048 = boardValues();
+        clearTimeout(gameOverTimer2048); gameOverTimer2048 = null;
+        render2048Tools();
+        return true;
+    }
+
+    function snapshot2048() {
+        return { tiles: tiles2048.filter(t => !t.dead).map(t => ({ v: t.v, r: t.r, c: t.c })), score, combo };
+    }
+
+    // Отмена последнего хода (заряды даются за плитки 512 и 1024)
+    function undo2048() {
+        if (!isPlaying || currentGame !== '2048' || moving2048) return false;
+        if (undos2048 <= 0) return false;
+        const rect = grid2048.getBoundingClientRect();
+        if (!history2048) { createFloatingText(rect.left + rect.width / 2, rect.top - 8, 'Нечего отменять', '#8892b0'); return false; }
+        const snap = history2048; history2048 = null; undos2048--;
+        if (hammerMode2048) { hammerMode2048 = false; grid2048.classList.remove('hammer-mode'); }
+        tiles2048.forEach(t => { if (t.el) t.el.remove(); t.el = null; });
+        tiles2048 = [];
+        snap.tiles.forEach(o => { const t = { id: ++tileSeq, v: o.v, r: o.r, c: o.c }; tiles2048.push(t); renderTile(t, 'tile-pop'); });
+        score = snap.score; combo = snap.combo;
+        board2048 = boardValues();
+        clearTimeout(gameOverTimer2048); gameOverTimer2048 = null;
+        playSynth('jump');
+        createFloatingText(rect.left + rect.width / 2, rect.top - 8, '↩️ Ход отменён', '#00ccff');
+        updateHud(); render2048Tools();
+        return true;
+    }
+
     function move2048(dir) {
         if (moving2048) return; // пока плитки едут, следующий свайп не принимаем
+        if (!isPlaying || currentGame !== '2048') return;
         const vec = { L: [0, -1], R: [0, 1], U: [-1, 0], D: [1, 0] }[dir];
+        if (!vec) return;
+        const snap = snapshot2048();   // для «отмены хода»
         const order = [0, 1, 2, 3];
         const rows = vec[0] === 1 ? [...order].reverse() : order;
         const cols = vec[1] === 1 ? [...order].reverse() : order;
         let moved = false, mergedCount = 0;
         const mergedInto = new Set();
+        const merges = [];
 
         for (const r of rows) for (const c of cols) {
             const t = tileAt(r, c); if (!t) continue;
@@ -1019,7 +1761,9 @@
                 if (other.v === t.v && !mergedInto.has(other.id)) {
                     t.dead = true; t.r = tr; t.c = tc;     // доедет до цели и исчезнет
                     other.v *= 2; mergedInto.add(other.id); other.justMerged = true;
-                    score += other.v * 15; mergedCount++;
+                    const pts = Math.round(other.v * T2048_POINTS_PER_VALUE);
+                    score += pts; mergedCount++;
+                    merges.push({ t: other, pts });
                     moved = true;
                 }
                 break;
@@ -1027,6 +1771,8 @@
             if (!t.dead && (nr !== r || nc !== c)) { t.r = nr; t.c = nc; moved = true; }
         }
         if (!moved) return;
+        history2048 = snap;
+        if (hammerMode2048) { hammerMode2048 = false; grid2048.classList.remove('hammer-mode'); } // свайп отменяет выбор
 
         // 1) Все плитки едут на новые места (CSS transition)
         moving2048 = true;
@@ -1038,24 +1784,75 @@
             if (!isPlaying || currentGame !== '2048') { moving2048 = false; return; }
             tiles2048.filter(t => t.dead).forEach(t => t.el && t.el.remove());
             tiles2048 = tiles2048.filter(t => !t.dead);
-            tiles2048.forEach(t => { if (t.justMerged) { renderTile(t, 'tile-merged'); t.justMerged = false; } });
+            let gained = null;
+            tiles2048.forEach(t => {
+                if (!t.justMerged) return;
+                t.justMerged = false;
+                renderTile(t, t.v >= T2048_BIG_TILE ? 'tile-merged-big' : 'tile-merged');
+            });
+
+            // Сочность слияний: искры из клетки, «+N», для крупных — вспышка
+            let bigMerge = 0;
+            merges.forEach(m => {
+                if (m.t.dead) return;
+                const ctr = cellCenter2048(m.t.r, m.t.c), conf = tMap[m.t.v] || { tc: '#00ff88', n: 'MAX' };
+                createParticle(ctr.x, ctr.y, conf.tc, Math.min(26, 6 + Math.log2(m.t.v) * 2), 380 + Math.log2(m.t.v) * 40, 2.6);
+                createFloatingText(ctr.x, ctr.y - 6, `+${m.pts}`, conf.tc);
+                if (m.t.v >= T2048_BIG_TILE) bigMerge = Math.max(bigMerge, m.t.v);
+                // Крупные надписи — над и под сеткой, а не на плитке, чтобы не слипались с «+N»
+                const gr = grid2048.getBoundingClientRect();
+                if (m.t.v > maxTile2048) {
+                    if (m.t.v >= 64) createFloatingText(gr.left + gr.width / 2, gr.top - 30, `НОВЫЙ ЛОТ: ${conf.n}`, '#ffffff');
+                    maxTile2048 = m.t.v;
+                }
+                // Первая плитка 512 / 1024 — награда: отмена хода
+                if (T2048_UNDO_TILES.includes(m.t.v) && !undoGranted2048[m.t.v]) {
+                    undoGranted2048[m.t.v] = true; undos2048++; gained = 'undo';
+                    createFloatingText(gr.left + gr.width / 2, gr.bottom + 22, '↩️ +1 отмена хода', '#00ccff');
+                }
+            });
+            if (bigMerge) {
+                const conf = tMap[bigMerge] || { tc: '#00ff88' };
+                flashScreen(conf.tc, 0.28); playSynth('big'); haptic('medium');
+                const rect = grid2048.getBoundingClientRect();
+                createConfetti(rect.left + rect.width / 2, rect.top + rect.height * 0.6, 22, 1.1);
+            }
 
             if (mergedCount) {
                 playSynth('merge');
-                score += Math.round(mergedCount * 20 * comboMult());
+                score += Math.round(mergedCount * T2048_COMBO_POINTS * comboMult());
                 combo++;
                 if (combo > comboBest) comboBest = combo;
+                const rect = grid2048.getBoundingClientRect();
                 if (COMBO_MILESTONES.includes(combo)) {
                     showComboToast(`🔥 КОМБО x${combo}`); playSynth('good');
                     if (combo % 10 === 0) bonusCoins += 1;
+                } else if (mergedCount >= 2) {
+                    createFloatingText(rect.left + rect.width / 2, rect.top - 6, mergedCount >= 3 ? `✨ x${mergedCount} СЛИЯНИЯ!` : '✨ ДВОЙНОЕ!', '#ffcc00');
+                } else if (combo >= 2) {
+                    createFloatingText(rect.left + rect.width / 2, rect.top - 6, `комбо x${combo}`, '#ffcc00');
                 }
-                if (isTgEnv && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+                // Молоток зарабатывается серией ходов со слиянием (не покупается).
+                // Счётчик отдельный от combo и НЕ откатывается отменой хода —
+                // иначе «отмена + тот же ход» давала бы молотки бесконечно.
+                hammerProgress2048++;
+                if (hammerProgress2048 >= T2048_HAMMER_EVERY) {
+                    hammerProgress2048 = 0;
+                    if (hammers2048 < T2048_HAMMER_MAX) {
+                        hammers2048++; gained = gained || 'hammer';
+                        createFloatingText(rect.left + rect.width / 2, rect.top + rect.height + 48, '🔨 +1 молоток', '#ffcc00');
+                        playSynth('good');
+                    }
+                }
+                haptic('light');
             } else {
                 resetCombo(); // ход был, но без слияния — цепочка прервалась
+                hammerProgress2048 = 0;
             }
             add2048();
             board2048 = boardValues();
             updateHud();
+            render2048Tools(gained);
             moving2048 = false;
 
             if (!board2048.includes(0)) {
@@ -1064,10 +1861,24 @@
                     if (board2048[i * 4 + j] === board2048[i * 4 + j + 1] ||
                         board2048[j * 4 + i] === board2048[(j + 1) * 4 + i]) canMove = true;
                 }
-                if (!canMove) setTimeout(gameOver, 800);
+                if (!canMove) {
+                    // Ходов нет, но есть бонусы — даём шанс ими воспользоваться
+                    if (hammers2048 > 0 || (undos2048 > 0 && history2048)) showComboToast('Ходов нет — 🔨 или ↩️');
+                    else { clearTimeout(gameOverTimer2048); gameOverTimer2048 = setTimeout(gameOver, 800); }
+                }
             }
         }, SLIDE_MS);
     }
+
+    // В 2048 холст только рисует частицы и всплывающие надписи поверх сетки
+    function loop2048Fx(time) {
+        if (!isPlaying || currentGame !== '2048') return;
+        let dt = (time - lastTime) / 1000; lastTime = time; if (dt > 0.1) dt = 0.1; if (!(dt > 0)) dt = 0;
+        ctx.clearRect(0, 0, width, height);
+        updateAndDrawParticles(dt);
+        gameReq = requestAnimationFrame(loop2048FxSafe);
+    }
+    const loop2048FxSafe = safeFrame(loop2048Fx);
 
     // ===== ЗМЕЙКИ =====
     // На поле лежат неоновые змейки — изогнутые, на несколько клеток, со
@@ -1084,6 +1895,18 @@
     const ARR_VEC = { U: [0, -1], D: [0, 1], L: [-1, 0], R: [1, 0] };
     const ARR_COLOR = { U: '#00ccff', D: '#ffcc00', L: '#ff55cc', R: '#00ff88' };
     const ARR_LIVES = 3;
+    // Новые механики по уровням (чтобы игра не была однообразной):
+    const ARR_LOCK_LEVEL = 3;      // «замороженные» змейки: ждут, пока уползут N других
+    const ARR_ROCK_LEVEL = 4;      // камни: неподвижные клетки-препятствия
+    const ARR_GOLD_LEVEL = 5;      // золотая змейка: бонус за неё
+    const ARR_GOLD_BONUS = 30;
+    const ARR_PERFECT_BASE = 20, ARR_PERFECT_PER_LEVEL = 5;   // бонус «без ошибок»
+    const ARR_CLEAR_TIME = 1.6;    // с — праздник прохождения уровня, потом следующий
+    const ARR_HINTS = {
+        [ARR_LOCK_LEVEL]: '🔒 Новое: замороженная змейка — ждёт, пока уползут другие',
+        [ARR_ROCK_LEVEL]: '🪨 Новое: камни — их не сдвинуть',
+        [ARR_GOLD_LEVEL]: '⭐ Новое: золотая змейка — бонусные очки',
+    };
     let arr = null;
 
     function genArrowsLevel(level) {
@@ -1093,8 +1916,19 @@
         const fill = Math.min(0.5 + level * 0.03, 0.78);       // какую долю клеток занять
         const key = (c, r) => c + ',' + r;
         const inside = (c, r) => c >= 0 && c < cols && r >= 0 && r < rows;
-        const occ = new Set(), snakes = [];
+        const occ = new Set(), snakes = [], rocks = [];
         let used = 0;
+        // Камни кладём ДО змеек и считаем занятыми навсегда: луч головы
+        // любой змейки проверяется на свободу от них при укладке, а камни
+        // никогда не уходят — значит, гарантия решаемости сохраняется.
+        if (level >= ARR_ROCK_LEVEL) {
+            const nRocks = Math.min(1 + Math.floor((level - ARR_ROCK_LEVEL) / 2), 4);
+            for (let tries = 0; rocks.length < nRocks && tries < 50; tries++) {
+                const c = Math.floor(Math.random() * cols), r = Math.floor(Math.random() * rows);
+                if (occ.has(key(c, r))) continue;
+                occ.add(key(c, r)); rocks.push([c, r]);
+            }
+        }
         for (let tries = 0; tries < 1500 && used < cols * rows * fill; tries++) {
             const hc = Math.floor(Math.random() * cols), hr = Math.floor(Math.random() * rows);
             if (occ.has(key(hc, hr))) continue;
@@ -1133,11 +1967,30 @@
                 cells.forEach(([x, y]) => occ.add(key(x, y)));
                 used += cells.length;
                 snakes.push({ cells, dir: d, state: 'idle', s: 0, v: 0, t: 0, appear: 0,
-                              delay: snakes.length * 0.035, hit: 0 });
+                              delay: snakes.length * 0.035, hit: 0, lock: 0, gold: false, shiver: 0 });
                 break;
             }
         }
-        return { cols, rows, snakes };
+        // Замки. Порядок «последняя уложенная уползает первой» всегда
+        // работает; в нём перед змейкой i уходят ровно n-1-i других. Замок
+        // ≤ n-1-i к моменту её очереди гарантированно спадёт (каждая ушедшая
+        // змейка снимает по единице со ВСЕХ замков) — решаемость сохраняется.
+        const n = snakes.length;
+        if (level >= ARR_LOCK_LEVEL && n >= 4) {
+            const nLock = Math.min(1 + Math.floor((level - ARR_LOCK_LEVEL) / 3), 3);
+            const cand = [];
+            for (let i = 0; i < n; i++) if (n - 1 - i >= 2) cand.push(i);
+            cand.sort(() => Math.random() - 0.5);
+            for (let k = 0; k < nLock && k < cand.length; k++) {
+                const i = cand[k], maxLock = Math.min(4, n - 1 - i);
+                snakes[i].lock = 2 + Math.floor(Math.random() * (maxLock - 1));
+            }
+        }
+        if (level >= ARR_GOLD_LEVEL) {
+            const free = snakes.filter(s => !s.lock);
+            if (free.length) free[Math.floor(Math.random() * free.length)].gold = true;
+        }
+        return { cols, rows, snakes, rocks };
     }
 
     function arrLayout() {
@@ -1150,23 +2003,37 @@
 
     function startArrows() {
         lives = ARR_LIVES;
-        arr = { level: 1, banner: 1.2, levelStart: performance.now(), clearing: false };
+        arr = { level: 1, banner: 1.2, levelStart: performance.now(), clearing: false,
+                mistakes: 0, celebrate: null, hint: '', hintT: 0 };
         Object.assign(arr, genArrowsLevel(1));
         timeLeft = arr.level;  // в HUD-ячейке «уровень»
         document.getElementById('ui-time-box').style.display = 'flex';
         document.getElementById('ui-lives-box').style.display = 'flex';
         document.getElementById('btn-ingame-exit').style.display = 'block';
         canvas.style.display = 'block'; grid2048.style.display = 'none';
-        gameReq = requestAnimationFrame(loopArrows);
+        gameReq = requestAnimationFrame(loopArrowsSafe);
     }
 
-    // Чья клетка стоит на луче головы и через сколько клеток (или null)
+    // Следующий уровень (вызывается из игрового цикла после праздника)
+    function nextArrowsLevel() {
+        arr.level++;
+        Object.assign(arr, genArrowsLevel(arr.level));
+        arr.levelStart = performance.now(); arr.banner = 1.2; arr.clearing = false;
+        arr.mistakes = 0; arr.celebrate = null;
+        arr.hint = ARR_HINTS[arr.level] || ''; arr.hintT = arr.hint ? 3.2 : 0;
+        timeLeft = arr.level; updateHud();
+    }
+
+    // Что стоит на луче головы и через сколько клеток (или null):
+    // {snake, dist} — другая змейка, {rock: true, dist} — камень.
     function arrBlocker(sn) {
         const [dc, dr] = ARR_VEC[sn.dir];
         const [hc, hr] = sn.cells[0];
+        const rocks = arr.rocks || [];
         for (let x = hc + dc, y = hr + dr, n = 1; x >= 0 && x < arr.cols && y >= 0 && y < arr.rows; x += dc, y += dr, n++) {
             const b = arr.snakes.find(q => q !== sn && q.state !== 'fly' && q.cells.some(([a, bb]) => a === x && bb === y));
             if (b) return { snake: b, dist: n };
+            if (rocks.some(([a, bb]) => a === x && bb === y)) return { snake: null, rock: true, dist: n };
         }
         return null;
     }
@@ -1191,27 +2058,51 @@
     function onArrowsTap(e) {
         if (!isPlaying || currentGame !== 'arrows' || !arr || arr.clearing) return;
         const rect = canvas.getBoundingClientRect();
-        const px = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
-        const py = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+        const pt = e.touches ? e.touches[0] : e;
+        if (!pt) return;
+        const px = pt.clientX - rect.left, py = pt.clientY - rect.top;
         const L = arrLayout();
         const c = Math.floor((px - L.ox) / L.cell), r = Math.floor((py - L.oy) / L.cell);
         const sn = arr.snakes.find(q => q.state === 'idle' && q.appear >= 1 && q.cells.some(([a, b]) => a === c && b === r));
         if (!sn) return;
         const [hx, hy] = snakePoint(sn, sn.cells.length - 1, L);
+        if (sn.lock > 0) {
+            // Замороженная: не штрафуем, только подсказываем, сколько ждать
+            sn.shiver = 0.3; playSynth('jump');
+            createFloatingText(hx, hy - 18, `🔒 ещё ${sn.lock}`, '#9fdcff');
+            return;
+        }
         const block = arrBlocker(sn);
         if (block) {
             sn.state = 'bump'; sn.t = 0; sn.bumpDist = block.dist - 1 + 0.3;
-            block.snake.hit = 0.35;
+            if (block.snake) block.snake.hit = 0.35;
+            arr.mistakes++;
             lives = Math.max(0, lives - 1); resetCombo(); updateHud();
             playSynth('hit'); shakeScreen();
-            createFloatingText(hx, hy - 18, 'ЗАНЯТО!', '#ff3366');
-            if (lives <= 0) { arr.clearing = true; setTimeout(gameOver, 650); }
+            createFloatingText(hx, hy - 18, block.rock ? 'КАМЕНЬ!' : 'ЗАНЯТО!', '#ff3366');
+            if (lives <= 0) { arr.clearing = true; flashScreen('#ff3366', 0.4); setTimeout(gameOver, 650); }
         } else {
             sn.state = 'fly'; sn.v = 6; sn.s = 0;   // скорость в клетках/с, растёт
             bumpCombo(hx, hy - 20);
-            score += Math.round((8 + sn.cells.length * 4) * comboMult()); updateHud();
+            let gain = Math.round((8 + sn.cells.length * 4) * comboMult());
+            if (sn.gold) {
+                gain += ARR_GOLD_BONUS;
+                createConfetti(hx, hy, 14, 1.3); playSynth('big');
+                createFloatingText(hx, hy - 42, `⭐ +${ARR_GOLD_BONUS}`, '#ffd700');
+            }
+            score += gain; updateHud();
+            // Ушла змейка — со всех замков снимаем по единице
+            arr.snakes.forEach(q => {
+                if (q === sn || !(q.lock > 0)) return;
+                q.lock--;
+                if (q.lock === 0) {
+                    const [qx, qy] = snakePoint(q, q.cells.length - 1, L);
+                    createFloatingText(qx, qy - 16, '🔓', '#9fdcff');
+                    createParticle(qx, qy, '#9fdcff', 10, 380, 2.5);
+                }
+            });
             playSynth('good');
-            if (isTgEnv && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+            haptic('light');
         }
     }
     canvas.addEventListener('pointerdown', onArrowsTap);
@@ -1234,7 +2125,9 @@
     }
 
     function drawSnake(sn, L, alpha, scale) {
-        const col = ARR_COLOR[sn.dir], red = sn.state === 'bump' || sn.hit > 0;
+        // Золотая — бонусная, ледяная — «замороженная» (ждёт, пока уползут другие)
+        const col = sn.gold ? '#fff1a8' : sn.lock > 0 ? '#d4ecff' : ARR_COLOR[sn.dir];
+        const red = sn.state === 'bump' || sn.hit > 0;
         const color = red ? '#ff3366' : col;
         const pts = snakePath(sn, L);
         const [hx, hy] = pts[pts.length - 1];
@@ -1251,13 +2144,17 @@
         const chevron = () => { ctx.beginPath(); ctx.moveTo(wingL[0], wingL[1]); ctx.lineTo(tip[0], tip[1]); ctx.lineTo(wingR[0], wingR[1]); };
 
         ctx.save(); ctx.globalAlpha = alpha; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        if (sn.shiver > 0) ctx.translate(Math.sin(sn.shiver * 70) * 4 * (sn.shiver / 0.3), 0);  // «дрожь» замороженной
         // 1) неоновый контур со свечением
         ctx.shadowBlur = 16; ctx.shadowColor = color; ctx.strokeStyle = color;
         ctx.lineWidth = w + 5; traceSmooth(body, rad); ctx.stroke();
         ctx.lineWidth = w * 0.62 + 5; chevron(); ctx.stroke();
         ctx.shadowBlur = 0;
         // 2) тёмная сердцевина трубки
-        ctx.strokeStyle = red ? 'rgba(70,10,25,0.96)' : 'rgba(10,15,30,0.96)';
+        // Сердцевина тоже своя: золотая у бонусной, «ледяная» у замороженной —
+        // иначе золотую не отличить от жёлтых змеек, смотрящих вниз
+        ctx.strokeStyle = red ? 'rgba(70,10,25,0.96)' : sn.gold ? 'rgba(150,110,0,0.96)'
+            : sn.lock > 0 ? 'rgba(45,70,100,0.96)' : 'rgba(10,15,30,0.96)';
         ctx.lineWidth = w - 1; traceSmooth(body, rad); ctx.stroke();
         ctx.lineWidth = Math.max(1, w * 0.62 - 1); chevron(); ctx.stroke();
         // 3) мягкий световой «шов» по центру — даёт объём
@@ -1268,12 +2165,101 @@
         // 4) яркий кончик головы
         ctx.globalAlpha = alpha; ctx.fillStyle = color; ctx.shadowBlur = 10; ctx.shadowColor = color;
         ctx.beginPath(); ctx.arc(tip[0], tip[1], Math.max(2, w * 0.2), 0, Math.PI * 2); ctx.fill();
+        // 5) значок: звезда у золотой, замок с числом — у замороженной
+        if (sn.gold && pts.length) {
+            const mp = pts[Math.floor((pts.length - 1) / 2)] || pts[0];
+            const br = Math.max(8, L.cell * 0.24);
+            ctx.shadowBlur = 12; ctx.shadowColor = '#ffd700';
+            ctx.fillStyle = '#ffd700'; ctx.beginPath(); ctx.arc(mp[0], mp[1], br, 0, Math.PI * 2); ctx.fill();
+            ctx.shadowBlur = 0; ctx.fillStyle = '#5a3d00'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.font = `bold ${Math.round(br * 1.5)}px Arial, sans-serif`;
+            ctx.fillText('★', mp[0], mp[1] + 1);
+            ctx.textBaseline = 'alphabetic';
+        }
+        if (sn.lock > 0 && pts.length) {
+            const mp = pts[Math.floor((pts.length - 1) / 2)] || pts[0];
+            const br = Math.max(8, L.cell * 0.24);
+            ctx.shadowBlur = 8; ctx.shadowColor = '#d4ecff';
+            ctx.fillStyle = 'rgba(10,20,40,0.95)'; ctx.strokeStyle = '#d4ecff'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.arc(mp[0], mp[1], br, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+            ctx.shadowBlur = 0; ctx.fillStyle = '#e6f1ff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.font = `bold ${Math.round(br * 1.2)}px Orbitron, "Segoe UI", Roboto, Arial, sans-serif`;
+            ctx.fillText(String(sn.lock), mp[0], mp[1] + 1);
+            ctx.textBaseline = 'alphabetic';
+        }
+        ctx.restore();
+    }
+
+    // Камень: неровный восьмиугольник с трещиной
+    function drawRock(x, y, cell) {
+        const cx = x + cell / 2, cy = y + cell / 2, R = cell / 2 - cell * 0.12;
+        ctx.save();
+        ctx.fillStyle = 'rgba(40,46,66,0.95)'; ctx.strokeStyle = '#8892b0'; ctx.lineWidth = 2;
+        ctx.shadowBlur = 6; ctx.shadowColor = '#8892b0';
+        ctx.beginPath();
+        for (let i = 0; i < 8; i++) {
+            const a = i * Math.PI / 4 + 0.3, rr = R * (i % 2 ? 0.84 : 1);
+            ctx.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr);
+        }
+        ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.shadowBlur = 0; ctx.strokeStyle = 'rgba(136,146,176,0.6)'; ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.moveTo(cx - R * 0.4, cy - R * 0.2); ctx.lineTo(cx, cy + R * 0.1); ctx.lineTo(cx + R * 0.3, cy - R * 0.35); ctx.stroke();
+        ctx.restore();
+    }
+
+    // Уровень пройден: бонусы, звёзды, конфетти. Следующий уровень
+    // включает игровой цикл через ARR_CLEAR_TIME секунд (по dt, не таймером).
+    function startArrowsCelebration() {
+        arr.clearing = true;
+        const secs = (performance.now() - arr.levelStart) / 1000;
+        const par = 5 + arr.level * 3;
+        const base = 50 + 25 * arr.level;
+        const speed = Math.max(0, Math.round((par - secs) * 4));
+        const perfect = arr.mistakes === 0 ? ARR_PERFECT_BASE + ARR_PERFECT_PER_LEVEL * arr.level : 0;
+        const stars = (arr.mistakes === 0 && secs <= par) ? 3 : (arr.mistakes <= 1 && secs <= par * 1.6) ? 2 : 1;
+        score += base + speed + perfect;
+        const lines = [`+${base} за уровень`];
+        if (speed) lines.push(`+${speed} за скорость`);
+        if (perfect) lines.push(`+${perfect} без ошибок`);
+        if (perfect && lives < ARR_LIVES) { lives++; lines.push('❤️ +1 жизнь'); }
+        updateHud();
+        arr.celebrate = { t: 0, stars, lines };
+        createConfetti(width * 0.15, height * 0.92, 26, 0.6);
+        createConfetti(width * 0.85, height * 0.92, 26, 0.6);
+        flashScreen('#00ff88', 0.22); playSynth('big'); haptic('medium');
+    }
+
+    function drawArrowsCelebration(L) {
+        const c = arr.celebrate, t = c.t;
+        const cy = L.oy + L.cell * arr.rows / 2 - 40;
+        const x = Math.min(1, t / 0.25);
+        const sc = 0.6 + 0.4 * (1 + 2.2 * Math.pow(x - 1, 3) + 1.2 * Math.pow(x - 1, 2));  // easeOutBack
+        const fade = Math.max(0, Math.min(1, (ARR_CLEAR_TIME - t) / 0.3));
+        ctx.save(); ctx.globalAlpha = fade;
+        ctx.fillStyle = 'rgba(5,5,10,0.6)'; ctx.fillRect(0, cy - 60, width, 190);
+        ctx.translate(width / 2, cy); ctx.scale(sc, sc); ctx.textAlign = 'center';
+        ctx.shadowBlur = 18; ctx.shadowColor = '#00ff88'; ctx.fillStyle = '#e6f1ff';
+        ctx.font = 'bold 24px Orbitron, "Segoe UI", Roboto, Arial, sans-serif';
+        ctx.fillText('УРОВЕНЬ ПРОЙДЕН!', 0, -14);
+        // Звёзды выскакивают по одной
+        for (let i = 0; i < 3; i++) {
+            const st = t - 0.25 - i * 0.18;
+            if (st < 0) continue;
+            const k = Math.min(1, st / 0.2);
+            ctx.fillStyle = i < c.stars ? '#ffcc00' : 'rgba(255,255,255,0.18)';
+            ctx.shadowColor = '#ffcc00'; ctx.shadowBlur = i < c.stars ? 14 : 0;
+            ctx.font = `bold ${Math.round(34 * (1.5 - 0.5 * k))}px Arial, sans-serif`;
+            ctx.fillText('★', (i - 1) * 44, 30);
+        }
+        ctx.shadowBlur = 0; ctx.fillStyle = '#ffcc00';
+        ctx.font = 'bold 16px Rajdhani, "Segoe UI", Roboto, Arial, sans-serif';
+        c.lines.forEach((ln, i) => { if (t > 0.5 + i * 0.12) ctx.fillText(ln, 0, 62 + i * 19); });
         ctx.restore();
     }
 
     function loopArrows(time) {
         if (!isPlaying) return;
-        let dt = (time - lastTime) / 1000; lastTime = time; if (dt > 0.1) dt = 0.1;
+        let dt = (time - lastTime) / 1000; lastTime = time; if (dt > 0.1) dt = 0.1; if (!(dt > 0)) dt = 0;
         ctx.clearRect(0, 0, width, height); drawBackground(dt);
         const L = arrLayout();
 
@@ -1283,12 +2269,14 @@
         for (let r = 0; r < arr.rows; r++) for (let c = 0; c < arr.cols; c++) {
             ctx.beginPath(); ctx.arc(L.ox + (c + 0.5) * L.cell, L.oy + (r + 0.5) * L.cell, 1.6, 0, Math.PI * 2); ctx.fill();
         }
+        for (const rk of (arr.rocks || [])) drawRock(L.ox + rk[0] * L.cell, L.oy + rk[1] * L.cell, L.cell);
 
         const far = Math.max(arr.cols, arr.rows) + 8;   // столько клеток — и змейка точно за экраном
         for (let i = arr.snakes.length - 1; i >= 0; i--) {
             const sn = arr.snakes[i];
             if (sn.appear < 1) { sn.delay -= dt; if (sn.delay <= 0) sn.appear = Math.min(1, sn.appear + dt * 4); }
             if (sn.hit) sn.hit = Math.max(0, sn.hit - dt);
+            if (sn.shiver) sn.shiver = Math.max(0, sn.shiver - dt);
             if (sn.state === 'fly') {
                 sn.v += 34 * dt; sn.s += sn.v * dt;
                 if (sn.s - sn.cells.length > far) { arr.snakes.splice(i, 1); continue; }
@@ -1297,42 +2285,51 @@
                 sn.s = sn.bumpDist * Math.sin(k * Math.PI);   // туда и обратно одной дугой
                 if (k >= 1) { sn.state = 'idle'; sn.s = 0; }
             }
+            // Золотая искрит, пока лежит
+            if (sn.gold && sn.state === 'idle' && sn.appear >= 1 && Math.random() < dt * 5 && sn.cells.length > 1) {
+                const [gx, gy] = snakePoint(sn, Math.random() * (sn.cells.length - 1), L);
+                particles.push({ x: gx, y: gy, vx: 0, vy: -35, life: 0.7, color: '#ffd700', size: 2, g: 0 });
+            }
             const a = sn.appear;
             const sc = a <= 0 ? 0 : 1 + 2.2 * Math.pow(a - 1, 3) + 1.2 * Math.pow(a - 1, 2);  // easeOutBack
             if (sc <= 0) continue;
             drawSnake(sn, L, Math.min(1, a * 1.5), sc);
         }
 
-        if (!arr.clearing && arr.snakes.length === 0) {
-            arr.clearing = true;
-            const secs = (performance.now() - arr.levelStart) / 1000;
-            const par = 5 + arr.level * 3;
-            const bonus = 50 + 25 * arr.level + Math.max(0, Math.round((par - secs) * 4));
-            score += bonus; updateHud();
-            createFloatingText(width / 2, height / 2 + 40, `+${bonus} за уровень`, '#ffcc00');
-            playSynth('good');
-            setTimeout(() => {
-                if (!isPlaying || currentGame !== 'arrows') return;
-                arr.level++;
-                Object.assign(arr, genArrowsLevel(arr.level));
-                arr.levelStart = performance.now(); arr.banner = 1.2; arr.clearing = false;
-                timeLeft = arr.level; updateHud();
-            }, 900);
-        }
+        if (!arr.clearing && arr.snakes.length === 0) startArrowsCelebration();
 
         if (arr.banner > 0) {
             arr.banner -= dt;
-            ctx.globalAlpha = Math.min(1, arr.banner * 2.5);
+            ctx.globalAlpha = Math.max(0, Math.min(1, arr.banner * 2.5));
             ctx.fillStyle = '#e6f1ff'; ctx.shadowBlur = 16; ctx.shadowColor = '#00ff88';
             ctx.font = 'bold 26px Orbitron, "Segoe UI", Roboto, Arial, sans-serif'; ctx.textAlign = 'center';
             ctx.fillText(`УРОВЕНЬ ${arr.level}`, width / 2, L.oy - 22);
             ctx.shadowBlur = 0; ctx.globalAlpha = 1;
         }
+        // Подсказка про новую механику — на уровне, где она появляется впервые
+        if (arr.hintT > 0 && arr.hint) {
+            arr.hintT -= dt;
+            const parts = arr.hint.split(' — ');
+            ctx.save(); ctx.globalAlpha = Math.max(0, Math.min(1, arr.hintT * 2));
+            ctx.fillStyle = 'rgba(5,5,10,0.78)';
+            ctx.beginPath(); ctx.roundRect(14, L.oy + 6, width - 28, 22 + parts.length * 18, 10); ctx.fill();
+            ctx.fillStyle = '#ffcc00'; ctx.textAlign = 'center';
+            ctx.font = 'bold 15px Rajdhani, "Segoe UI", Roboto, Arial, sans-serif';
+            parts.forEach((ln, i) => ctx.fillText(i ? ln : ln, width / 2, L.oy + 26 + i * 18));
+            ctx.restore();
+        }
 
         updateAndDrawParticles(dt);
-        gameReq = requestAnimationFrame(loopArrows);
+        if (arr.celebrate) {
+            arr.celebrate.t += dt;
+            drawArrowsCelebration(L);
+            if (arr.celebrate.t >= ARR_CLEAR_TIME) nextArrowsLevel();
+        }
+        gameReq = requestAnimationFrame(loopArrowsSafe);
     }
+    const loopArrowsSafe = safeFrame(loopArrows);
 
 </script>
 </body>
 </html>
+
