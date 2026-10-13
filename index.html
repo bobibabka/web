@@ -3,24 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Avito Radar Hub - PRO</title>
+    <title>Avito Radar — игры</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap');
 
+        /* Светлая «дорогая» тема: палитра оригинального 2048, мягкий круглый
+           шрифт, большие скругления, объёмные кнопки и мягкие тени. */
+        :root {
+            --bg: #faf8ef; --ink: #776e65; --ink-soft: #a0968c; --line: #ece4d9;
+            --card: #ffffff; --board: #bbada0; --board-dark: #a39383;
+            --btn: #8f7a66; --btn-dark: #6f5d4d; --btn2: #cbbfb3; --btn2-dark: #ab9e91;
+            --exit: #f67c5f; --exit-dark: #d4593c; --accent: #f65e3b;
+            --green: #6aaa64; --blue: #4a90d9; --gold: #edc22e;
+            --shadow: 0 12px 32px rgba(119, 110, 101, 0.13), 0 2px 6px rgba(119, 110, 101, 0.06);
+            --font: 'Nunito', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+        }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body {
-            margin: 0; padding: 0; background-color: #05050A; color: white;
-            font-family: 'Rajdhani', sans-serif;
+            margin: 0; padding: 0; background-color: var(--bg); color: var(--ink);
+            font-family: var(--font);
             overflow: hidden; touch-action: none; user-select: none;
         }
 
-        .glass-panel {
-            background: rgba(10, 16, 32, 0.78);
-            backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
-            border: 1px solid rgba(0, 255, 136, 0.25);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.6);
-        }
+        .glass-panel { background: var(--card); border: none; box-shadow: var(--shadow); }
 
         .screen {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -30,36 +36,55 @@
         .active { display: flex; }
 
         .menu-box {
-            width: 88%; max-width: 400px; padding: 28px 22px;
-            border-radius: 20px; text-align: center;
-            border-top: 2px solid rgba(0, 255, 136, 0.6);
+            width: 90%; max-width: 400px; padding: 26px 20px 20px;
+            border-radius: 28px; text-align: center;
         }
+        .kicker { font-size: 12px; font-weight: 800; letter-spacing: 2.5px; color: var(--ink-soft);
+                  text-transform: uppercase; margin-bottom: 2px; }
+        h1 { margin: 0 0 6px 0; font-size: 34px; font-weight: 900; color: var(--ink); letter-spacing: -0.3px; }
+        p { color: var(--ink-soft); font-size: 15px; font-weight: 700; margin: 0 0 18px; line-height: 1.35; }
 
-        h1 { font-family: 'Orbitron', sans-serif; margin: 0 0 8px 0; font-size: 26px; 
-             color: #fff; text-shadow: 0 0 12px #00ff88; letter-spacing: 2px;}
-        p { color: #8892b0; font-size: 15px; margin-bottom: 22px; line-height: 1.4;}
-
+        /* Объёмные кнопки: нажатие «вдавливает» кнопку (класс старый — его
+           используют и скрипты) */
         .btn-neon {
-            background: transparent; color: #00ff88;
-            font-family: 'Orbitron', sans-serif; font-size: 14px; font-weight: 700;
-            padding: 14px 16px; border-radius: 10px; border: 2px solid #00ff88;
-            cursor: pointer; position: relative; overflow: hidden; margin-bottom: 12px;
-            box-shadow: 0 0 15px rgba(0, 255, 136, 0.2), inset 0 0 10px rgba(0, 255, 136, 0.1);
-            transition: all 0.2s; width: 100%; text-transform: uppercase; letter-spacing: 1px;
-            display: flex; align-items: center; justify-content: center; gap: 8px;
+            background: var(--btn); color: #fff; font-family: inherit; font-size: 17px; font-weight: 800;
+            padding: 14px 16px; border-radius: 16px; border: none; box-shadow: 0 5px 0 var(--btn-dark);
+            cursor: pointer; position: relative; margin: 0 0 14px; width: 100%;
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            transition: transform 0.08s, box-shadow 0.08s;
         }
-        .btn-neon:active { background: #00ff88; color: #05050A; transform: scale(0.97); }
-        .btn-secondary { border-color: #00ccff; color: #00ccff; box-shadow: 0 0 15px rgba(0, 204, 255, 0.2), inset 0 0 10px rgba(0, 204, 255, 0.1); }
-        .btn-secondary:active { background: #00ccff; color: #05050A; }
-        .btn-exit { border-color: #ff3366; color: #ff3366; margin-top: 15px; }
-        .btn-exit:active { background: #ff3366; color: #05050A; }
-        .menu-icon { width: 22px; height: 22px; flex-shrink: 0; filter: drop-shadow(0 0 4px currentColor); }
-        .btn-neon:active .menu-icon { filter: none; }
+        .btn-neon:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--btn-dark); }
+        .btn-secondary { background: var(--btn2); box-shadow: 0 5px 0 var(--btn2-dark); }
+        .btn-secondary:active { box-shadow: 0 1px 0 var(--btn2-dark); }
+        .btn-exit { background: var(--exit); box-shadow: 0 5px 0 var(--exit-dark); }
+        .btn-exit:active { box-shadow: 0 1px 0 var(--exit-dark); }
+        #btn-ingame-exit:active { transform: translateX(-50%) translateY(4px) !important; }
+        .menu-icon { width: 22px; height: 22px; flex-shrink: 0; }
+
+        /* Карточки игр в меню */
+        .game-card {
+            width: 100%; display: flex; align-items: center; gap: 14px; padding: 11px 14px 11px 11px;
+            margin: 0 0 12px; background: #fcfaf6; border: 2px solid var(--line); border-radius: 22px;
+            box-shadow: 0 4px 0 var(--line); cursor: pointer; font-family: inherit; text-align: left;
+            transition: transform 0.08s, box-shadow 0.08s;
+        }
+        .game-card:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--line); }
+        .gc-icon { width: 60px; height: 60px; flex-shrink: 0; border-radius: 18px; overflow: hidden;
+                   box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.08); }
+        .gc-icon svg { width: 60px; height: 60px; display: block; }
+        .gc-text { flex: 1; min-width: 0; }
+        .gc-title { font-size: 20px; font-weight: 900; color: var(--ink); line-height: 1.1; }
+        .gc-sub { font-size: 13px; font-weight: 700; color: var(--ink-soft); margin-top: 2px; }
+        .gc-best { font-size: 12px; font-weight: 800; color: #c99a1e; margin-top: 2px; }
+        .gc-best:empty { display: none; }
+        .gc-go { width: 30px; height: 30px; border-radius: 50%; background: var(--line); color: var(--ink);
+                 display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 900; flex-shrink: 0; }
+
         #combo-toast {
             position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%) scale(0.6);
-            font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 26px; color: #ffcc00;
-            text-shadow: 0 0 16px rgba(255,204,0,0.8); pointer-events: none; opacity: 0; z-index: 8;
-            transition: none;
+            font-weight: 900; font-size: 30px; color: var(--accent);
+            text-shadow: 0 3px 0 #fff, 0 -3px 0 #fff, 3px 0 0 #fff, -3px 0 0 #fff, 0 6px 12px rgba(119,110,101,0.25);
+            pointer-events: none; opacity: 0; z-index: 8; transition: none; white-space: nowrap;
         }
         #combo-toast.pop { animation: comboPop 0.7s ease-out forwards; }
         @keyframes comboPop {
@@ -69,18 +94,19 @@
             100% { opacity: 0; transform: translate(-50%, -60%) scale(1); }
         }
 
-        /* HUD */
+        /* HUD — «табло» как у 2048, но круглее и объёмнее */
         #hud {
-            position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
-            width: 90%; max-width: 450px; display: none; justify-content: space-between; align-items: center;
-            padding: 10px 18px; border-radius: 14px; z-index: 5;
+            position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+            width: 92%; max-width: 450px; display: none; justify-content: space-between; align-items: center;
+            gap: 8px; z-index: 5;
         }
-        .hud-stat { display: flex; flex-direction: column; align-items: center; }
-        .hud-label { font-size: 11px; color: #8892b0; text-transform: uppercase; letter-spacing: 1px;}
-        .hud-val { font-family: 'Orbitron', sans-serif; font-size: 19px; font-weight: 700; }
-        #val-score { color: #00ff88; text-shadow: 0 0 10px rgba(0,255,136,0.5); }
-        #val-time { color: #00ccff; text-shadow: 0 0 10px rgba(0,204,255,0.5); }
-        #val-lives { color: #ff3366; text-shadow: 0 0 10px rgba(255,51,102,0.5); letter-spacing: 2px; }
+        #hud.glass-panel { background: transparent; border: none; box-shadow: none; padding: 0; }
+        .hud-stat { display: flex; flex-direction: column; align-items: center;
+                    background: var(--board); border-radius: 16px; padding: 6px 16px 7px; min-width: 80px;
+                    box-shadow: 0 4px 0 var(--board-dark); }
+        .hud-label { font-size: 11px; font-weight: 800; color: #f3ece4; text-transform: uppercase; letter-spacing: 1.2px; }
+        .hud-val { font-size: 22px; font-weight: 900; color: #fff; line-height: 1.1; }
+        #val-lives { letter-spacing: 2px; }
 
         canvas { display: none; position: absolute; top:0; left:0; }
         #game-container { position: absolute; width: 100%; height: 100%; transition: transform 0.05s; }
@@ -94,53 +120,56 @@
             display: none; position: absolute; top: 48%; left: 50%;
             transform: translate(-50%, -50%); z-index: 4;
             width: 88vw; max-width: 370px; height: 88vw; max-height: 370px;
-            border-radius: 16px;
+            border-radius: 22px;
         }
-        .cell-bg { position: absolute; border-radius: 10px; background: rgba(255,255,255,0.04);
-                   border: 1px solid rgba(255,255,255,0.05); }
+        #grid-2048.glass-panel { background: var(--board); border: none;
+                                 box-shadow: 0 6px 0 var(--board-dark), var(--shadow); }
+        .cell-bg { position: absolute; border-radius: 14px; background: rgba(238, 228, 218, 0.38); }
         .tile {
-            position: absolute; left: 0; top: 0; border-radius: 10px;
-            color: #fff; will-change: transform; font-family: 'Orbitron', sans-serif;
+            position: absolute; left: 0; top: 0; border-radius: 14px;
+            color: var(--ink); will-change: transform;
             transition: transform 0.12s cubic-bezier(.2,.7,.3,1);
         }
-        .tile-inner { width: 100%; height: 100%; border-radius: 10px; display: flex; flex-direction: column;
-                      align-items: center; justify-content: center; }
-        .tile-icon { width: 30px; height: 30px; margin-bottom: 2px; }
-        .tile-name { font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 700; }
-        .tile-val { font-size: 12px; opacity: 0.7; }
+        .tile-inner { width: 100%; height: 100%; border-radius: 14px; display: flex; flex-direction: column;
+                      align-items: center; justify-content: center; box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.08); }
+        .tile-icon { width: 30px; height: 30px; margin-bottom: 1px; }
+        .tile-name { font-size: 13px; font-weight: 900; }
+        .tile-val { font-size: 12px; font-weight: 800; opacity: 0.85; }
         .tile-pop .tile-inner { animation: tilePop 0.2s cubic-bezier(.2,.9,.3,1.3) both; }
         .tile-merged .tile-inner { animation: tileMerge 0.22s ease-out; }
         @keyframes tilePop { from { transform: scale(0.2); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-        @keyframes tileMerge { 0% { transform: scale(1); } 40% { transform: scale(1.22); filter: brightness(1.5); } 100% { transform: scale(1); } }
-        /* Крупное слияние (256+) — пульс сильнее и дольше, с ореолом */
+        @keyframes tileMerge { 0% { transform: scale(1); } 40% { transform: scale(1.2); } 100% { transform: scale(1); } }
+        /* Крупное слияние (256+) — пульс сильнее и дольше */
         .tile-merged-big .tile-inner { animation: tileMergeBig 0.42s cubic-bezier(.2,.9,.3,1.2); }
         @keyframes tileMergeBig {
             0% { transform: scale(1); }
-            35% { transform: scale(1.38) rotate(-4deg); filter: brightness(2.1); box-shadow: 0 0 40px currentColor; }
-            65% { transform: scale(0.94) rotate(2deg); }
+            35% { transform: scale(1.3) rotate(-4deg); box-shadow: 0 0 0 5px rgba(237, 194, 46, 0.55); }
+            65% { transform: scale(0.95) rotate(2deg); }
             100% { transform: scale(1); }
         }
         /* Плитку разбили молотком */
         .tile-smash .tile-inner { animation: tileSmash 0.22s ease-in forwards; }
         @keyframes tileSmash { to { transform: scale(0.1) rotate(25deg); opacity: 0; } }
-        /* Режим молотка: плитки подсвечены, тап по плитке — разбить */
-        #grid-2048.hammer-mode { box-shadow: 0 0 0 2px #ffcc00, 0 0 24px rgba(255,204,0,0.45); }
+        /* Режим молотка: плитки покачиваются, тап по плитке — разбить */
+        #grid-2048.hammer-mode { box-shadow: 0 0 0 4px #f2b179, 0 6px 0 var(--board-dark); }
         #grid-2048.hammer-mode .tile .tile-inner { animation: hammerWobble 0.6s ease-in-out infinite; cursor: crosshair; }
         @keyframes hammerWobble { 0%,100% { transform: rotate(0); } 25% { transform: rotate(-3deg); } 75% { transform: rotate(3deg); } }
 
         /* Инструменты 2048 в HUD: молоток и отмена хода */
         #hud-2048-tools { display: none; gap: 8px; align-items: center; }
         .tool-btn {
-            position: relative; min-width: 54px; height: 38px; padding: 0 8px; border-radius: 10px;
-            background: rgba(255,204,0,0.08); border: 1.5px solid rgba(255,204,0,0.55); color: #ffcc00;
-            font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 14px; cursor: pointer;
+            position: relative; min-width: 56px; height: 46px; padding: 0 10px; border-radius: 16px;
+            background: var(--btn); border: none; color: #fff; box-shadow: 0 4px 0 var(--btn-dark);
+            font-family: inherit; font-weight: 900; font-size: 16px; cursor: pointer;
             display: flex; align-items: center; justify-content: center; gap: 4px; overflow: hidden;
+            transition: transform 0.08s, box-shadow 0.08s;
         }
-        .tool-btn:disabled { opacity: 0.35; cursor: default; }
-        .tool-btn.armed { background: #ffcc00; color: #05050A; }
-        .tool-btn .tool-prog { position: absolute; left: 0; bottom: 0; height: 3px; background: #ffcc00; width: 0%; transition: width .25s; }
+        .tool-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--btn-dark); }
+        .tool-btn:disabled { opacity: 0.45; cursor: default; }
+        .tool-btn.armed { background: var(--accent); box-shadow: 0 4px 0 #c94a2e; }
+        .tool-btn .tool-prog { position: absolute; left: 0; bottom: 0; height: 4px; background: var(--gold); width: 0%; transition: width .25s; }
         .tool-btn.gain { animation: toolGain 0.5s ease-out; }
-        @keyframes toolGain { 0% { transform: scale(1); } 40% { transform: scale(1.3); box-shadow: 0 0 18px #ffcc00; } 100% { transform: scale(1); } }
+        @keyframes toolGain { 0% { transform: scale(1); } 40% { transform: scale(1.22); } 100% { transform: scale(1); } }
 
         /* Вспышка всего экрана (удар, крупное слияние, рекорд) */
         #fx-flash { position: fixed; inset: 0; pointer-events: none; z-index: 30; opacity: 0; }
@@ -149,39 +178,62 @@
         /* В 2048 холст лежит ПОВЕРХ сетки и рисует только частицы/надписи */
         canvas.fx-overlay { z-index: 6; pointer-events: none; }
 
-        /* Карточка найденного лота */
-        .listing-card {
-            background: rgba(15, 25, 45, 0.85); border: 1px solid rgba(0, 204, 255, 0.4);
-            border-radius: 12px; padding: 14px; margin: 15px 0; text-align: left;
-            box-shadow: 0 4px 20px rgba(0, 204, 255, 0.2);
-        }
-        .badge-found {
-            display: inline-block; background: rgba(0, 255, 136, 0.2); color: #00ff88;
-            font-size: 11px; font-weight: 700; padding: 4px 8px; border-radius: 6px;
-            text-transform: uppercase; margin-bottom: 6px;
-        }
-        .listing-title { font-size: 16px; font-weight: 700; color: #ffffff; margin-bottom: 4px; }
-        .listing-meta { display: flex; justify-content: space-between; align-items: baseline; margin-top: 8px; }
-        .listing-price { font-family: 'Orbitron', sans-serif; font-size: 19px; color: #00ff88; font-weight: 700; }
-        .listing-profit { font-size: 13px; color: #00ccff; font-weight: 700; }
+        /* Экран итогов */
+        .go-medal { width: 76px; height: 76px; margin: 0 auto 10px; border-radius: 50%;
+                    background: #fbf3d5; display: flex; align-items: center; justify-content: center; }
+        .go-medal svg { width: 46px; height: 46px; }
+        .go-score-box { background: #f6f1ea; border-radius: 22px; padding: 12px 14px 14px; margin: 14px 0 12px; }
+        .go-score-label { font-size: 12px; font-weight: 800; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 1.5px; }
+        .go-score-val { font-size: 50px; font-weight: 900; color: var(--ink); line-height: 1.05; }
+        #final-record { display: none; margin: 4px 0 2px; font-size: 15px; font-weight: 800; color: var(--accent); }
+        .go-coins { margin-bottom: 18px; font-size: 16px; font-weight: 800; color: var(--green); }
+
+        /* Профиль */
+        .pf-head { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+        .pf-avatar { width: 58px; height: 58px; border-radius: 50%; border: 3px solid #fff;
+                     box-shadow: 0 0 0 2px var(--line); object-fit: cover; background: #eee4da; }
+        .pf-name { font-weight: 900; color: var(--ink); font-size: 19px; }
+        .pf-level-title { color: var(--ink-soft); font-size: 13px; font-weight: 800; }
+        .pf-stats { display: flex; justify-content: space-around; gap: 8px; margin-bottom: 16px; }
+        .pf-stat { flex: 1; background: #f6f1ea; border-radius: 18px; padding: 10px 4px; }
+        .pf-stat-val { font-size: 22px; font-weight: 900; color: var(--ink); }
+        .pf-stat-label { font-size: 12px; font-weight: 700; color: var(--ink-soft); }
+        .pf-hist-title { text-align: left; font-size: 13px; color: var(--ink-soft); margin-bottom: 4px; font-weight: 800; }
+        #pf-history { text-align: left; max-height: 160px; overflow-y: auto; font-size: 14px; font-weight: 700; color: var(--ink); }
+
+        /* Нижняя панель: токены + уровень */
+        #bottom-bar { display: none; position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+                      padding: 10px 18px 12px; background: var(--card); border-radius: 22px 22px 0 0;
+                      box-shadow: 0 -6px 24px rgba(119, 110, 101, 0.10); }
+        .bar-row { display: flex; justify-content: space-between; align-items: center; font-size: 14px; font-weight: 700; color: var(--ink); }
+        .bar-row b { font-weight: 900; }
+        .bar-track { height: 8px; border-radius: 6px; background: #eee4da; margin-top: 7px; overflow: hidden; }
+        #bar-xp { height: 100%; width: 0%; border-radius: 6px; background: linear-gradient(90deg, #f2c94c, #edc22e); transition: width .4s; }
 
         /* Загрузка */
-        #loading-console { width: 85%; max-width: 380px; text-align: left; }
-        .progress-container { width: 100%; height: 4px; background: rgba(0,255,136,0.2); border-radius: 2px; overflow: hidden; margin-top: 10px; }
-        #loading-bar { width: 0%; height: 100%; background: #00ff88; box-shadow: 0 0 10px #00ff88; }
+        #loading-console { width: 85%; max-width: 380px; text-align: center; }
+        .loading-mark { width: 74px; height: 74px; margin: 0 auto 14px; border-radius: 22px; background: var(--gold);
+                        box-shadow: 0 6px 0 #c99a1e; color: #fff; font-size: 22px; font-weight: 900;
+                        display: flex; align-items: center; justify-content: center; }
+        .loading-title { font-size: 32px; font-weight: 900; color: var(--ink); margin-bottom: 4px; }
+        #loading-status { color: var(--ink-soft); font-size: 15px; font-weight: 800; }
+        .progress-container { width: 100%; height: 10px; background: #eee4da; border-radius: 6px; overflow: hidden; margin-top: 14px; }
+        #loading-bar { width: 0%; height: 100%; border-radius: 6px; background: var(--btn); transition: width .1s; }
         #console-logs {
-            margin-top: 15px; font-size: 12px; color: rgba(255,255,255,0.6);
-            font-family: monospace; height: 90px; display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden;
+            margin-top: 14px; font-size: 14px; font-weight: 700; color: var(--ink-soft);
+            height: 90px; display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden;
         }
         .log-line { margin-bottom: 3px; }
-        .log-sys { color: #00ccff; } .log-ok { color: #00ff88; }
+        .log-sys { color: var(--ink-soft); } .log-ok { color: var(--green); }
     </style>
 </head>
 <body>
 
     <div id="screen-loading" class="screen active">
         <div id="loading-console">
-            <div style="font-family: 'Orbitron'; color: #00ff88; font-size: 16px;" id="loading-status">INITIALIZING SYSTEM...</div>
+            <div class="loading-mark">AR</div>
+            <div class="loading-title">Avito Radar</div>
+            <div id="loading-status">Загрузка…</div>
             <div class="progress-container"><div id="loading-bar"></div></div>
             <div id="console-logs"></div>
         </div>
@@ -189,89 +241,92 @@
 
     <div id="screen-menu" class="screen">
         <div class="glass-panel menu-box">
-            <h1>AVITO RADAR</h1>
-            <p>Пока бот ищет — играй и зарабатывай токены на поиски.</p>
-            <button class="btn-neon" onclick="startGame('arrows')">
-                <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M4 19v-6h7V6h6"/><path d="M16 3l4 3-4 3"/>
-                </svg> ЗМЕЙКИ
+            <div class="kicker">Avito Radar</div>
+            <h1>Игры</h1>
+            <p id="menu-sub">Пока бот ищет — сыграй партию. Лучшие рекорды попадают в общий топ /top.</p>
+            <button class="game-card" onclick="startGame('arrows')">
+                <div class="gc-icon"><svg viewBox="0 0 60 60"><rect width="60" height="60" fill="#6aaa64"/>
+                    <path d="M15 44H30a7 7 0 0 0 7-7V21" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M29 27l8-8 8 8" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+                <div class="gc-text"><div class="gc-title">Змейки</div><div class="gc-sub">Выпусти всех змеек с поля</div>
+                    <div class="gc-best" id="best-arrows"></div></div>
+                <div class="gc-go">›</div>
             </button>
-            <button class="btn-neon btn-secondary" onclick="startGame('2048')">
-                <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                    <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/>
-                    <rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5" fill="currentColor" fill-opacity="0.25"/>
-                </svg> RESALE 2048
+            <button class="game-card" onclick="startGame('2048')">
+                <div class="gc-icon"><svg viewBox="0 0 60 60"><rect width="60" height="60" fill="#edc22e"/>
+                    <text x="30" y="37" text-anchor="middle" font-family="Nunito, Arial, sans-serif" font-weight="900" font-size="17" fill="#fff">2048</text></svg></div>
+                <div class="gc-text"><div class="gc-title">2048</div><div class="gc-sub">Собирай вещи подороже</div>
+                    <div class="gc-best" id="best-2048"></div></div>
+                <div class="gc-go">›</div>
             </button>
-            <button class="btn-neon" onclick="startGame('doodle')">
-                <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                    <path d="M12 3l2.5 5 5.5.8-4 3.9.9 5.5L12 15.8 7.1 18.2l.9-5.5-4-3.9 5.5-.8z" stroke-linejoin="round"/>
-                </svg> ПРАЙС-ПРЫГУН
+            <button class="game-card" onclick="startGame('doodle')">
+                <div class="gc-icon"><svg viewBox="0 0 60 60"><rect width="60" height="60" fill="#a7d8f5"/>
+                    <rect x="11" y="46" width="38" height="7" rx="3.5" fill="#7cc25c" stroke="#4e8f35" stroke-width="2"/>
+                    <path d="M24 35l-2 7M30 35v7M36 35l2 7" stroke="#4f7f2f" stroke-width="2.6" stroke-linecap="round"/>
+                    <rect x="18" y="13" width="24" height="23" rx="8" fill="#a8d672" stroke="#4f7f2f" stroke-width="2.4"/>
+                    <circle cx="25" cy="22" r="3.6" fill="#fff"/><circle cx="35" cy="22" r="3.6" fill="#fff"/>
+                    <circle cx="25.8" cy="22" r="1.7" fill="#3b3b3b"/><circle cx="35.8" cy="22" r="1.7" fill="#3b3b3b"/>
+                    <path d="M26 28q4 3 8 0" fill="none" stroke="#4f7f2f" stroke-width="2" stroke-linecap="round"/></svg></div>
+                <div class="gc-text"><div class="gc-title">Прыгун</div><div class="gc-sub">Прыгай как можно выше</div>
+                    <div class="gc-best" id="best-doodle"></div></div>
+                <div class="gc-go">›</div>
             </button>
-            <button class="btn-neon btn-secondary" onclick="openProfile()">
-                <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <button class="btn-neon btn-secondary" style="margin-top:6px;" onclick="openProfile()">
+                <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                     <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6" stroke-linecap="round"/>
-                </svg> ПРОФИЛЬ
+                </svg> Профиль
             </button>
         </div>
     </div>
 
     <!-- Экран профиля: аватар/имя бота, токены, уровень, история поисков -->
     <div id="screen-profile" class="screen">
-        <div class="glass-panel menu-box" style="border-top-color:#00ff88;">
-            <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
-                <img id="pf-avatar" src="" alt="" style="width:56px; height:56px; border-radius:50%; border:2px solid #00ff88; object-fit:cover; background:#0a0f1e;"
-                     onerror="this.style.display='none'">
+        <div class="glass-panel menu-box">
+            <div class="pf-head">
+                <img id="pf-avatar" class="pf-avatar" src="" alt="" onerror="this.style.display='none'">
                 <div style="text-align:left;">
-                    <div id="pf-name" style="font-family:'Orbitron'; font-weight:bold; color:#e6f1ff; font-size:16px;">ItemFinder</div>
-                    <div id="pf-level-title" style="color:#00ff88; font-size:12px;">Уровень 1</div>
+                    <div id="pf-name" class="pf-name">ItemFinder</div>
+                    <div id="pf-level-title" class="pf-level-title">Уровень 1</div>
                 </div>
             </div>
-            <div style="display:flex; justify-content:space-around; margin-bottom:14px;">
-                <div><div style="font-family:'Orbitron'; font-size:20px; color:#00ff88;" id="pf-tokens">0</div>
-                     <div style="font-size:11px; color:#8892b0;">🪙 токенов</div></div>
-                <div><div style="font-family:'Orbitron'; font-size:20px; color:#00ccff;" id="pf-searches">0</div>
-                     <div style="font-size:11px; color:#8892b0;">🔍 поисков</div></div>
-                <div><div style="font-family:'Orbitron'; font-size:20px; color:#e6f1ff;" id="pf-level">1</div>
-                     <div style="font-size:11px; color:#8892b0;">⭐ уровень</div></div>
+            <div class="pf-stats">
+                <div class="pf-stat"><div class="pf-stat-val" id="pf-tokens">0</div>
+                     <div class="pf-stat-label">🪙 токенов</div></div>
+                <div class="pf-stat"><div class="pf-stat-val" id="pf-searches">0</div>
+                     <div class="pf-stat-label">🔍 поисков</div></div>
+                <div class="pf-stat"><div class="pf-stat-val" id="pf-level">1</div>
+                     <div class="pf-stat-label">⭐ уровень</div></div>
             </div>
-            <div style="text-align:left; font-size:12px; color:#8892b0; margin-bottom:6px;">Последние поиски:</div>
-            <div id="pf-history" style="text-align:left; max-height:160px; overflow-y:auto; font-size:12px; color:#aab;"></div>
-            <button class="btn-neon" style="margin-top:16px;" onclick="closeProfile()">← В МЕНЮ</button>
+            <div class="pf-hist-title">Последние поиски</div>
+            <div id="pf-history"></div>
+            <button class="btn-neon" style="margin-top:18px;" onclick="closeProfile()">← В меню</button>
         </div>
     </div>
 
     <div id="screen-gameover" class="screen">
-        <div class="glass-panel menu-box" style="border-top-color: #00ccff;">
-            <h1 style="text-shadow: 0 0 12px #00ccff; font-size: 22px;">ПОИСК ЗАВЕРШЕН!</h1>
-            <div style="color: #8892b0; font-size: 13px;">Нейросеть выгрузила лучший лот по задаче:</div>
-            
-            <div class="listing-card">
-                <div class="badge-found">🎯 Дисконт -42% от рынка</div>
-                <div class="listing-title" id="card-title">Секретный маржинальный лот</div>
-                <div style="font-size: 12px; color: #aaa;">Продавец не указал модель в названии</div>
-                <div class="listing-meta">
-                    <div class="listing-price" id="card-price">??? ₽</div>
-                    <div class="listing-profit" id="card-profit">Высокий профит</div>
-                </div>
+        <div class="glass-panel menu-box">
+            <div class="go-medal"><svg viewBox="0 0 48 48">
+                <path d="M14 8h20v8a10 10 0 0 1-20 0z" fill="#edc22e" stroke="#c99a1e" stroke-width="2.5" stroke-linejoin="round"/>
+                <path d="M14 11H8a6 6 0 0 0 6 7M34 11h6a6 6 0 0 1-6 7" fill="none" stroke="#c99a1e" stroke-width="2.5" stroke-linecap="round"/>
+                <path d="M24 26v7" stroke="#c99a1e" stroke-width="3"/><rect x="16" y="33" width="16" height="6" rx="2" fill="#c99a1e"/></svg></div>
+            <h1 style="font-size: 28px;">Игра окончена</h1>
+            <div class="go-score-box">
+                <div class="go-score-label">Счёт</div>
+                <div class="go-score-val" id="final-score">0</div>
+                <div id="final-record"></div>
             </div>
-
-            <div style="margin-bottom: 8px; font-size: 15px;">
-                Очки маржи: <span style="color:#00ccff; font-family:'Orbitron'; font-weight:bold;" id="final-score">0</span>
+            <div class="go-coins" id="go-coins">
+                Токенов за игру: ~<span id="final-coins">0</span> 🪙
             </div>
-            <div id="final-record" style="display:none; margin-bottom: 8px; font-size: 14px; color: #ffcc00; font-weight: bold;"></div>
-            <div style="margin-bottom: 18px; font-size: 16px; color: #00ff88; font-weight: bold;">
-                Токенов за игру: ~<span style="font-family:'Orbitron';" id="final-coins">0</span> 🪙
-            </div>
-
-            <button id="btn-finish" class="btn-neon" onclick="finishSession()">ЗАБРАТЬ ТОКЕНЫ</button>
+            <button id="btn-finish" class="btn-neon" onclick="finishSession()">Сохранить рекорд</button>
         </div>
     </div>
 
     <div id="game-container">
         <div id="hud" class="glass-panel">
-            <div class="hud-stat"><span class="hud-label">ОЧКИ</span><span class="hud-val" id="val-score">0</span></div>
-            <div class="hud-stat" id="ui-time-box"><span class="hud-label">УРОВЕНЬ</span><span class="hud-val" id="val-time">120</span></div>
-            <div class="hud-stat" id="ui-lives-box"><span class="hud-label">ЖИЗНИ</span><span class="hud-val" id="val-lives">|||||</span></div>
+            <div class="hud-stat"><span class="hud-label">Очки</span><span class="hud-val" id="val-score">0</span></div>
+            <div class="hud-stat" id="ui-time-box"><span class="hud-label">Уровень</span><span class="hud-val" id="val-time">120</span></div>
+            <div class="hud-stat" id="ui-lives-box"><span class="hud-label">Жизни</span><span class="hud-val" id="val-lives">|||||</span></div>
             <!-- Бонусы 2048: зарабатываются игрой (не покупаются) -->
             <div id="hud-2048-tools">
                 <button id="btn-hammer" class="tool-btn" onclick="toggle2048Hammer()" title="Молоток: убрать одну плитку">🔨<span id="cnt-hammer">0</span><span class="tool-prog" id="prog-hammer"></span></button>
@@ -281,23 +336,19 @@
         <canvas id="gameCanvas"></canvas>
         <div id="grid-2048" class="glass-panel"></div>
         <div id="combo-toast"></div>
-        <button id="btn-ingame-exit" class="btn-neon btn-exit" style="display:none; position:absolute; bottom:18px; left:50%; transform:translateX(-50%); width: 85%; max-width:340px; z-index:10;" onclick="gameOver()">ЗАВЕРШИТЬ СЕССИЮ</button>
+        <button id="btn-ingame-exit" class="btn-neon btn-exit" style="display:none; position:absolute; bottom:22px; left:50%; transform:translateX(-50%); width: 85%; max-width:340px; z-index:10;" onclick="gameOver()">Завершить игру</button>
     </div>
     <!-- Вспышка — вне game-container, чтобы тряска (transform) не загоняла её под экраны -->
     <div id="fx-flash"></div>
 
     <!-- Нижняя панель: баланс токенов + уровень игрока (XP). Видна в меню и
          профиле, прячется во время самой игры, чтобы не мешать. -->
-    <div id="bottom-bar" style="display:none; position:fixed; left:0; right:0; bottom:0; z-index:40;
-         padding:8px 14px; background:rgba(8,10,20,0.92); backdrop-filter:blur(8px);
-         border-top:1px solid rgba(0,255,136,0.25); font-family:'Orbitron',sans-serif;">
-        <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; color:#e6f1ff;">
-            <span>🪙 <b id="bar-tokens" style="color:#00ff88;">0</b></span>
-            <span>⭐ ур. <b id="bar-level" style="color:#00ccff;">1</b></span>
+    <div id="bottom-bar">
+        <div class="bar-row">
+            <span>🪙 <b id="bar-tokens">0</b></span>
+            <span>⭐ ур. <b id="bar-level">1</b></span>
         </div>
-        <div style="height:6px; border-radius:4px; background:rgba(255,255,255,0.08); margin-top:5px; overflow:hidden;">
-            <div id="bar-xp" style="height:100%; width:0%; background:linear-gradient(90deg,#00ff88,#00ccff); transition:width .4s;"></div>
-        </div>
+        <div class="bar-track"><div id="bar-xp"></div></div>
     </div>
 
 <script>
@@ -312,7 +363,12 @@
     // sendData доступен только при запуске с кнопки клавиатуры — это как
     // раз тот случай, когда initData пустая.
     let canSendData = isTgEnv && !tg.initData;
-    if (isTgEnv) { tg.expand(); tg.ready(); }
+    if (isTgEnv) {
+        tg.expand(); tg.ready();
+        // Шапка и фон Telegram — под светлую тему игры (в старых клиентах этих методов нет)
+        try { if (tg.setHeaderColor) tg.setHeaderColor('#faf8ef'); } catch (e) {}
+        try { if (tg.setBackgroundColor) tg.setBackgroundColor('#faf8ef'); } catch (e) {}
+    }
 
     // ===== ПРОФИЛЬ ИГРОКА (данные прокидывает бот через параметры URL) =====
     // Бот открывает WebApp по адресу вида
@@ -338,6 +394,15 @@
         },
         gcap: _num(_params.get('gcap'), 100),
     };
+    // Токены за игру бот выключил 13.10: без параметра tok=1 игра — просто игра
+    // (рекорды уходят в /top), без «заработай токены».
+    const TOKENS_ON = _params.get('tok') === '1';
+    if (TOKENS_ON) {
+        document.getElementById('menu-sub').innerText = 'Пока бот ищет — сыграй партию и заработай токены на поиски.';
+        document.getElementById('btn-finish').innerText = 'Забрать токены';
+    } else {
+        document.getElementById('go-coins').style.display = 'none';
+    }
     try {
         const h = _params.get('history');
         if (h) profile.history = JSON.parse(decodeURIComponent(h));
@@ -358,7 +423,7 @@
         document.getElementById('bar-xp').style.width = Math.min(100, li.pct) + '%';
     }
     function showBottomBar(show) {
-        document.getElementById('bottom-bar').style.display = show ? 'block' : 'none';
+        document.getElementById('bottom-bar').style.display = (show && TOKENS_ON) ? 'block' : 'none';
     }
 
     function openProfile() {
@@ -374,11 +439,11 @@
         const hist = document.getElementById('pf-history');
         if (profile.history.length) {
             hist.innerHTML = profile.history.map(function(s) {
-                return '<div style="padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.06);">🔍 ' +
+                return '<div style="padding:5px 0; border-bottom:1px solid #eee4da;">🔍 ' +
                     String(s).replace(/</g, '&lt;') + '</div>';
             }).join('');
         } else {
-            hist.innerHTML = '<div style="color:#556;">История пуста — сделай первый поиск в боте.</div>';
+            hist.innerHTML = '<div style="color:#9b9188;">История пуста — сделай первый поиск в боте.</div>';
         }
         document.getElementById('screen-menu').classList.remove('active');
         document.getElementById('screen-profile').classList.add('active');
@@ -386,8 +451,19 @@
     function closeProfile() {
         document.getElementById('screen-profile').classList.remove('active');
         document.getElementById('screen-menu').classList.add('active');
+        renderMenuBests();
+    }
+    // Личный рекорд на карточке каждой игры в меню
+    function renderMenuBests() {
+        for (const g of ['arrows', '2048', 'doodle']) {
+            const el = document.getElementById('best-' + g);
+            if (!el) continue;
+            const b = loadBest(g);
+            el.textContent = b > 0 ? '🏆 Рекорд: ' + b : '';
+        }
     }
 
+    const UI_FONT = '"Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif';
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     const container = document.getElementById('game-container');
@@ -484,7 +560,7 @@
         combo++;
         if (combo > comboBest) comboBest = combo;
         if (COMBO_MILESTONES.includes(combo)) {
-            createFloatingText(x, y, `🔥 КОМБО x${combo}`, '#ffcc00');
+            createFloatingText(x, y, `🔥 КОМБО x${combo}`, '#d9a400');
             playSynth('good');
             if (combo % 10 === 0) { bonusCoins += 1; } // каждые 10 в комбо — бонусная монета сверху
         }
@@ -496,9 +572,9 @@
     }
     function comboMult() { return 1 + Math.min(combo, 20) * 0.04; } // до +80% к очкам на самом длинном комбо
 
-    // --- Прайс-прыгун: джетпак (рюкзак) и пружины ---
+    // --- Прыгун: джетпак (рюкзак) и пружины ---
     let doodleJetpackUntil = 0; // timestamp (ms) до которого активен джетпак
-    // --- Физика Прайс-прыгуна (всё в px/с и px/с², не «за кадр») ---
+    // --- Физика Прыгуна (всё в px/с и px/с², не «за кадр») ---
     // Прыжки сделаны помедленнее и повыше, чем были: гравитация снижена с
     // 1980 до 1400, скорость с 930 до 820. Высота подъёма даже выросла
     // (218 -> 240px), но времени в воздухе стало на четверть больше — успеваешь
@@ -527,7 +603,7 @@
     const DOODLE_BOOTS_DURATION = 10000;
     const DOODLE_BOOTS_MULTIPLIER = 1.55;
 
-    // --- Очки Прайс-прыгуна ---
+    // --- Очки Прыгуна ---
     // Раньше очки = высота в пикселях, и сильный игрок за минуту набирал
     // 15–18 тыс. при серверном потолке 5000 (выше — «накрутка»). Теперь
     // одно очко = DOODLE_PX_PER_POINT пикселей высоты + скромные бонусы.
@@ -563,9 +639,9 @@
     // Виды монстров: r — радиус хитбокса, range — размах полёта вбок,
     // bob — покачивание по вертикали, speed — рад/с фазы, minAlt — с какой высоты.
     const DOODLE_MONSTERS = {
-        blob:  { r: 19, range: 0,  bob: 5, speed: 2.4, minAlt: 0,    color: '#b57cff' },
-        bat:   { r: 16, range: 38, bob: 7, speed: 1.9, minAlt: 2600, color: '#ff55cc' },
-        brute: { r: 23, range: 22, bob: 3, speed: 1.2, minAlt: 4000, color: '#ff3366' },
+        blob:  { r: 19, range: 0,  bob: 5, speed: 2.4, minAlt: 0,    color: '#9b7ad8' },
+        bat:   { r: 16, range: 38, bob: 7, speed: 1.9, minAlt: 2600, color: '#e0609a' },
+        brute: { r: 23, range: 22, bob: 3, speed: 1.2, minAlt: 4000, color: '#e5533d' },
     };
 
     let doodlePropUntil = 0;       // timestamp (ms) конца пропеллера
@@ -585,11 +661,10 @@
 
     // Загрузка
     const bootLogs = [
-        "<span class='log-sys'>[SYS]</span> Initializing parser engine...",
-        "<span class='log-sys'>[NET]</span> Connecting through residential proxy...",
-        "<span class='log-ok'>[OK]</span> Fingerprint spoofed successfully.",
-        "<span class='log-sys'>[AI]</span> Spinning up Vision neural weights...",
-        "<span class='log-ok'>[OK]</span> DeepScan radar ready."
+        "<span class='log-sys'>•</span> Раскладываю плитки…",
+        "<span class='log-sys'>•</span> Расставляю платформы…",
+        "<span class='log-sys'>•</span> Бужу змеек…",
+        "<span class='log-ok'>✓</span> Готово!"
     ];
 
     function runBootSequence() {
@@ -611,11 +686,11 @@
             }
 
             if (progress === 100) {
-                clearInterval(interval); statusEl.innerText = "READY";
+                clearInterval(interval); statusEl.innerText = "Готово";
                 setTimeout(() => {
                     document.getElementById('screen-loading').classList.remove('active');
                     document.getElementById('screen-menu').classList.add('active');
-                    renderBottomBar(); showBottomBar(true);
+                    renderBottomBar(); showBottomBar(true); renderMenuBests();
                 }, 400);
             }
         }, 110);
@@ -652,14 +727,14 @@
         for (let i = 0; i < 7; i++) {
             let side = i % 2 ? 1 : -1;
             particles.push({ x: x + side * 6, y, vx: side * (60 + Math.random() * 110), vy: -(20 + Math.random() * 60),
-                             life: 0.7, color: color || 'rgba(200,255,230,0.9)', size: 2 + Math.random() * 2, g: 260 });
+                             life: 0.7, color: color || 'rgba(160,150,140,0.7)', size: 2 + Math.random() * 2, g: 260 });
         }
     }
     function createFloatingText(x, y, text, color) { floatTexts.push({ x, y, text, color, life: 1, vy: -70, scale: 0.6 }); }
 
     // Конфетти: летят вверх веером и падают под гравитацией (всё в px/с).
     function createConfetti(x, y, count, spread) {
-        const colors = ['#00ff88', '#00ccff', '#ffcc00', '#ff55cc', '#b57cff'];
+        const colors = ['#f65e3b', '#edc22e', '#6aaa64', '#4a90d9', '#f2b179'];
         for (let i = 0; i < (count || 30); i++) {
             const a = -Math.PI / 2 + (Math.random() * 2 - 1) * (spread || 0.9);
             const v = 380 + Math.random() * 420;
@@ -729,7 +804,7 @@
         if (recordCelebrated || !isPlaying || bestScoreRun <= 0 || score <= bestScoreRun) return;
         recordCelebrated = true;
         showComboToast('🏆 НОВЫЙ РЕКОРД!');
-        flashScreen('#ffcc00', 0.3);
+        flashScreen('#d9a400', 0.3);
         playSynth('record');
         haptic('medium');
         createConfetti(width * 0.2, height * 0.35, 18, 0.7);
@@ -828,14 +903,14 @@
 
         // Оценка того, что начислит бот: его делители и дневной потолок 300
         // (бот сам пересчитает по очкам — числу из браузера он не верит).
-        bonusCoins = Math.max(0, Math.min(calculateCoins(score, currentGame), profile.gcap));
+        bonusCoins = TOKENS_ON ? Math.max(0, Math.min(calculateCoins(score, currentGame), profile.gcap)) : 0;
         document.getElementById('final-score').innerText = score;
         document.getElementById('final-coins').innerText = bonusCoins;
         renderBottomBar(); showBottomBar(true);
 
         if (isTgEnv) {
-            tg.MainButton.text = `🪙 ЗАБРАТЬ ~${bonusCoins} ТОКЕНОВ`;
-            tg.MainButton.color = "#00ff88"; tg.MainButton.textColor = "#05050A";
+            tg.MainButton.text = TOKENS_ON ? `🪙 ЗАБРАТЬ ~${bonusCoins} ТОКЕНОВ` : '🏆 СОХРАНИТЬ РЕКОРД';
+            tg.MainButton.color = "#8f7a66"; tg.MainButton.textColor = "#ffffff";
             tg.MainButton.offClick(finishSession);   // не копим обработчики от прошлых игр
             tg.MainButton.onClick(finishSession);
             tg.MainButton.show();
@@ -873,10 +948,10 @@
             if (tg.disableClosingConfirmation) tg.disableClosingConfirmation();
             tg.MainButton.hide();
             const msgBox = document.querySelector('#screen-gameover .menu-box');
-            msgBox.innerHTML = '<h1 style="font-size:20px; text-shadow:0 0 12px #ffcc00;">⚠️ ТОКЕНЫ НЕ ЗАЧТУТСЯ</h1>' +
-                '<p>Игра открыта не той кнопкой. Чтобы токены начислились, открой её кнопкой ' +
-                '<b>«🎮 Играть»</b> внизу чата с ботом (Заработать токены → Играть).</p>' +
-                '<button class="btn-neon" onclick="tg.close()">ПОНЯТНО</button>';
+            msgBox.innerHTML = (TOKENS_ON ? '<h1 style="font-size:22px;">⚠️ Токены не зачтутся</h1>' : '<h1 style="font-size:22px;">⚠️ Рекорд не сохранится</h1>') +
+                '<p>Игра открыта не той кнопкой. Чтобы результат дошёл до бота, открой её кнопкой ' +
+                '<b>«🎮 Играть»</b> внизу чата с ботом.</p>' +
+                '<button class="btn-neon" onclick="tg.close()">Понятно</button>';
         } else {
             alert(`Данные для бота:\n\nИгра: ${currentGame}\nОчки: ${score}\nКоины: ${bonusCoins} 🪙\n\nВ реальном боте интерфейс закроется сам.`);
             document.location.reload();
@@ -885,7 +960,7 @@
 
     function drawBackground(dt) {
         bgOffset = (bgOffset + 60 * (dt || 1 / 60)) % 40;
-        ctx.strokeStyle = 'rgba(0, 255, 136, 0.05)'; ctx.lineWidth = 1; ctx.beginPath();
+        ctx.strokeStyle = 'rgba(119, 110, 101, 0.08)'; ctx.lineWidth = 1; ctx.beginPath();
         for (let x = 0; x < width; x += 40) { ctx.moveTo(x, 0); ctx.lineTo(x, height); }
         for (let y = bgOffset; y < height; y += 40) { ctx.moveTo(0, y); ctx.lineTo(width, y); }
         ctx.stroke();
@@ -907,31 +982,33 @@
             // Надпись «выпрыгивает»: быстро растёт до 1.15, потом оседает к 1
             t.scale += ((t.life > 0.8 ? 1.15 : 1) - t.scale) * (1 - Math.exp(-14 * dt));
             ctx.globalAlpha = Math.max(0, Math.min(1, t.life * 1.6)); ctx.fillStyle = t.color;
-            ctx.shadowBlur = 10; ctx.shadowColor = t.color;
-            ctx.font = 'bold 18px Orbitron, "Segoe UI", Roboto, Arial, sans-serif'; ctx.textAlign = 'center';
+            ctx.font = '900 19px ' + UI_FONT; ctx.textAlign = 'center';
             // Не даём надписи у края экрана уехать за его пределы
             const hw = ctx.measureText(t.text).width * t.scale / 2 + 6;
             const tx = hw * 2 >= width ? width / 2 : Math.max(hw, Math.min(width - hw, t.x));
             ctx.save(); ctx.translate(tx, t.y); ctx.scale(t.scale, t.scale);
-            ctx.fillText(t.text, 0, 0); ctx.restore(); ctx.shadowBlur = 0;
+            // Белая обводка вместо неонового свечения — читается на светлом фоне
+            ctx.lineJoin = 'round'; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+            ctx.strokeText(t.text, 0, 0);
+            ctx.fillText(t.text, 0, 0); ctx.restore();
             if(t.life <= 0) floatTexts.splice(i, 1);
         }
         ctx.globalAlpha = 1.0;
     }
 
-    // --- RESALE 2048 ---
+    // --- 2048 ---
     const tMap = {
-        2:   {n:'Носки', c:'rgba(30,40,60,0.85)', tc:'#8892b0', svg:'<path d="M6 3v12c0 3 3 6 6 6s6-3 6-6V9h-4V3H6z" fill="currentColor"/>'},
-        4:   {n:'Кепка', c:'rgba(16,50,70,0.85)', tc:'#00ccff', svg:'<path d="M4 14c0-4 4-8 8-8s8 4 8 8v2H4v-2zm-2 2h20v2H2z" fill="currentColor"/>'},
-        8:   {n:'Кроссы', c:'rgba(12,65,45,0.85)', tc:'#00ff88', svg:'<path d="M3 13l4-7h5l2 3h4c2 0 3 2 3 4v3H3v-3z" fill="currentColor"/>'},
-        16:  {n:'Худи',  c:'rgba(40,30,80,0.85)', tc:'#b57cff', svg:'<path d="M8 4l4 3 4-3 5 3-2 13H5L3 7l5-3z" fill="currentColor"/>'},
-        32:  {n:'Часы',  c:'rgba(70,30,70,0.85)', tc:'#ff55cc', svg:'<circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 8v4l3 2" stroke="currentColor" stroke-width="2"/>'},
-        64:  {n:'Планшет',c:'rgba(80,55,15,0.85)', tc:'#ffaa00', svg:'<rect x="5" y="3" width="14" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="18" r="1" fill="currentColor"/>'},
-        128: {n:'Смарт', c:'rgba(90,40,10,0.85)', tc:'#ff7700', svg:'<rect x="6" y="2" width="12" height="20" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>'},
-        256: {n:'Ноут',  c:'rgba(95,20,20,0.85)', tc:'#ff3344', svg:'<rect x="5" y="5" width="14" height="10" rx="1" fill="none" stroke="currentColor" stroke-width="2"/><path d="M2 18h20v1H2z" fill="currentColor"/>'},
-        512: {n:'Мопед', c:'rgba(75,10,60,0.85)', tc:'#ff2288', svg:'<circle cx="6" cy="16" r="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="16" r="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6 16l4-7h4l4 7" fill="none" stroke="currentColor" stroke-width="2"/>'},
-        1024:{n:'Мото',  c:'rgba(10,75,85,0.85)', tc:'#00ffee', svg:'<path d="M4 15l4-5h6l3 2h3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="6" cy="16" r="3" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="16" r="3" stroke="currentColor" stroke-width="2"/>'},
-        2048:{n:'Спорткар', c:'rgba(5,5,10,0.95)', tc:'#00ff88', svg:'<path d="M3 14l3-6h12l3 6v3H3v-3z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="7" cy="17" r="2" fill="currentColor"/><circle cx="17" cy="17" r="2" fill="currentColor"/>'}
+        2:   {n:'Носки', c:'#eee4da', tc:'#776e65', fx:'#a39383', svg:'<path d="M6 3v12c0 3 3 6 6 6s6-3 6-6V9h-4V3H6z" fill="currentColor"/>'},
+        4:   {n:'Кепка', c:'#ede0c8', tc:'#776e65', fx:'#a39383', svg:'<path d="M4 14c0-4 4-8 8-8s8 4 8 8v2H4v-2zm-2 2h20v2H2z" fill="currentColor"/>'},
+        8:   {n:'Кроссы', c:'#f2b179', tc:'#f9f6f2', fx:'#e8955a', svg:'<path d="M3 13l4-7h5l2 3h4c2 0 3 2 3 4v3H3v-3z" fill="currentColor"/>'},
+        16:  {n:'Худи',  c:'#f59563', tc:'#f9f6f2', fx:'#ec7d43', svg:'<path d="M8 4l4 3 4-3 5 3-2 13H5L3 7l5-3z" fill="currentColor"/>'},
+        32:  {n:'Часы',  c:'#f67c5f', tc:'#f9f6f2', fx:'#ee6847', svg:'<circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 8v4l3 2" stroke="currentColor" stroke-width="2"/>'},
+        64:  {n:'Планшет',c:'#f65e3b', tc:'#f9f6f2', fx:'#e9502c', svg:'<rect x="5" y="3" width="14" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="18" r="1" fill="currentColor"/>'},
+        128: {n:'Смарт', c:'#edcf72', tc:'#f9f6f2', fx:'#d9b23a', svg:'<rect x="6" y="2" width="12" height="20" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>'},
+        256: {n:'Ноут',  c:'#edcc61', tc:'#f9f6f2', fx:'#d4ab2b', svg:'<rect x="5" y="5" width="14" height="10" rx="1" fill="none" stroke="currentColor" stroke-width="2"/><path d="M2 18h20v1H2z" fill="currentColor"/>'},
+        512: {n:'Мопед', c:'#edc850', tc:'#f9f6f2', fx:'#cfa21f', svg:'<circle cx="6" cy="16" r="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="16" r="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6 16l4-7h4l4 7" fill="none" stroke="currentColor" stroke-width="2"/>'},
+        1024:{n:'Мото',  c:'#edc53f', tc:'#f9f6f2', fx:'#c99a14', svg:'<path d="M4 15l4-5h6l3 2h3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="6" cy="16" r="3" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="16" r="3" stroke="currentColor" stroke-width="2"/>'},
+        2048:{n:'Спорткар', c:'#edc22e', tc:'#f9f6f2', fx:'#c2900a', svg:'<path d="M3 14l3-6h12l3 6v3H3v-3z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="7" cy="17" r="2" fill="currentColor"/><circle cx="17" cy="17" r="2" fill="currentColor"/>'}
     };
 
     // --- ПРАЙС-ПРЫГУН (Doodle Jump) ---
@@ -1100,63 +1177,182 @@
         doodleLastHazardAlt = doodleAlt(cy);
     }
 
+    // Платформы: [заливка, контур] — плоские цвета, как в оригинальном Doodle Jump
+    const PLATFORM_COLORS = {
+        normal:    ['#7cc25c', '#4e8f35'],
+        moving:    ['#6fa8dc', '#3f78ad'],
+        break:     ['#c49a6c', '#8d6a45'],
+        spring:    ['#7cc25c', '#4e8f35'],
+        coin:      ['#f2c94c', '#c99a1e'],
+        jetpack:   ['#f4a261', '#c76e2a'],
+        boots:     ['#6fa8dc', '#3f78ad'],
+        propeller: ['#f2c94c', '#c99a1e'],
+        vanish:    ['#ffffff', '#b9b0a6'],
+    };
+    // Темнее/светлее на k (−1..1) — для контуров
+    function shadeColor(hex, k) {
+        const n = parseInt(hex.slice(1), 16);
+        const f = c => Math.round(Math.max(0, Math.min(255, k < 0 ? c * (1 + k) : c + (255 - c) * k)));
+        return '#' + [n >> 16 & 255, n >> 8 & 255, n & 255].map(c => f(c).toString(16).padStart(2, '0')).join('');
+    }
+
+    // Прыгун: зелёный кубик с глазами, улыбкой и тремя ножками. Рисуем чуть
+    // выше точки (x, y): так кончики ножек стоят ровно на платформе
+    // (касание считается по y + 16).
     function drawDoodler(x, y, tilt, jetpackOn, squash, bootsOn, propOn, scale) {
-        ctx.save(); ctx.translate(x, y); ctx.rotate(tilt * 0.25);
+        const t = performance.now() / 1000;
+        ctx.save(); ctx.translate(x, y - 7); ctx.rotate(tilt * 0.25);
         // Сжатие/растяжение: при отскоке кубик приплющивается, в полёте
         // слегка вытягивается. Объём сохраняем (сжали по Y — расширили по X),
         // иначе выглядит как масштабирование, а не как упругость.
         let sq = squash || 1, sc = (scale === undefined ? 1 : Math.max(0, scale));
         ctx.scale(sc / sq, sc * sq);
-        ctx.shadowBlur = 14; ctx.shadowColor = '#00ff88'; ctx.fillStyle = '#0f1f2e';
-        ctx.strokeStyle = '#00ff88'; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.roundRect(-18, -16, 36, 32, 10); ctx.fill(); ctx.stroke();
-        ctx.shadowBlur = 0; ctx.fillStyle = '#00ff88';
-        ctx.beginPath(); ctx.arc(-7, -3, 4, 0, Math.PI*2); ctx.arc(7, -3, 4, 0, Math.PI*2); ctx.fill();
-        if (bootsOn) {
-            // Пружинные ботинки — видно, что они надеты, всё время действия
-            ctx.strokeStyle = '#00ccff'; ctx.lineWidth = 2;
-            ctx.shadowBlur = 8; ctx.shadowColor = '#00ccff';
-            for (let i = 0; i < 3; i++) {
-                let sy = 16 + i * 4;
-                ctx.beginPath(); ctx.moveTo(-12, sy); ctx.lineTo(12, sy); ctx.stroke();
-            }
-            ctx.shadowBlur = 0;
-        }
-        if (jetpackOn) {
-            // Рюкзак-джетпак на спине + пламя снизу, пока активен полёт
-            ctx.fillStyle = '#ff8800'; ctx.shadowBlur = 10; ctx.shadowColor = '#ff8800';
-            ctx.beginPath(); ctx.roundRect(-26, -12, 10, 22, 4); ctx.fill();
-            ctx.beginPath();
-            ctx.moveTo(-24, 10); ctx.lineTo(-21, 10 + 10 + Math.random() * 8); ctx.lineTo(-18, 10);
-            ctx.closePath(); ctx.fillStyle = '#ffcc00'; ctx.fill();
-            ctx.shadowBlur = 0;
-        }
-        if (propOn) {
-            // Кепка с пропеллером: лопасти «вращаются» (ширина пульсирует)
-            const spin = Math.abs(Math.sin(performance.now() / 1000 * 38));
-            ctx.fillStyle = '#ffcc00'; ctx.shadowBlur = 8; ctx.shadowColor = '#ffcc00';
-            ctx.beginPath(); ctx.arc(0, -16, 9, Math.PI, 0); ctx.closePath(); ctx.fill();
-            ctx.fillRect(-1.5, -31, 3, 7);
-            ctx.fillStyle = '#ff55cc';
-            ctx.beginPath(); ctx.ellipse(0, -31, 3 + 13 * spin, 2.5, 0, 0, Math.PI * 2); ctx.fill();
-            ctx.shadowBlur = 0;
-        }
+        const OUT = '#4f7f2f';
+        // 1) Джетпак — за спиной: баллоны выглядывают по бокам
+        if (jetpackOn) drawJetpack(t, true);
+        // 2) Ножки: летит вверх — поджаты, падает — растопырены,
+        //    на джетпаке и пропеллере — болтаются
+        const flying = jetpackOn || propOn, tucked = doodleVy < -150 && !flying;
+        ctx.strokeStyle = OUT; ctx.lineWidth = 3.4; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        [-10, 0, 10].forEach((lx, i) => {
+            const swing = flying ? Math.sin(t * 9 + i * 1.7) * 2.5 : 0;
+            const len = tucked ? 6 : 9;
+            const fx = lx + lx * (tucked ? 0.12 : 0.3) + swing, fy = 14 + len;
+            ctx.beginPath(); ctx.moveTo(lx, 12); ctx.lineTo(fx, fy); ctx.stroke();
+            if (bootsOn) drawCoil(fx, fy, 7, 4);
+            else { ctx.beginPath(); ctx.moveTo(fx - 3, fy); ctx.lineTo(fx + 3.5, fy); ctx.stroke(); }   // ступня
+        });
+        // 3) Тело: мягкий градиент, контур и блик
+        const g = ctx.createLinearGradient(0, -16, 0, 16);
+        g.addColorStop(0, '#c2e88f'); g.addColorStop(1, '#94c95e');
+        ctx.fillStyle = g; ctx.strokeStyle = OUT; ctx.lineWidth = 2.6;
+        ctx.beginPath(); ctx.roundRect(-18, -16, 36, 32, 11); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = 'rgba(255,255,255,0.45)';
+        ctx.beginPath(); ctx.ellipse(-8, -10, 6.5, 3, -0.35, 0, Math.PI * 2); ctx.fill();
+        // 4) Глаза смотрят туда, куда наклонился, и улыбка
+        const look = Math.max(-1.6, Math.min(1.6, tilt * 2));
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.arc(-7, -3, 5.2, 0, Math.PI * 2); ctx.arc(7, -3, 5.2, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#3b3b3b';
+        ctx.beginPath(); ctx.arc(-7 + look, -2.5, 2.5, 0, Math.PI * 2); ctx.arc(7 + look, -2.5, 2.5, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = OUT; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(0, 4, 4.5, 0.2 * Math.PI, 0.8 * Math.PI); ctx.stroke();
+        // 5) Кепка с пропеллером
+        if (propOn) drawPropCap(0, -16, t, 1);
         ctx.restore();
     }
 
-    function drawSpringIcon(x, y, w) {
-        ctx.save(); ctx.strokeStyle = '#00ccff'; ctx.lineWidth = 2; ctx.shadowBlur = 8; ctx.shadowColor = '#00ccff';
-        ctx.beginPath();
-        for (let i = 0; i < 3; i++) { let sy = y - 4 - i * 5; ctx.moveTo(x + 8, sy); ctx.lineTo(x + w - 8, sy); }
-        ctx.stroke(); ctx.shadowBlur = 0; ctx.restore();
+    // Пружинка под ступнёй (ботинки-пружины): синяя подошва и витки
+    function drawCoil(x, y, h, w) {
+        ctx.save(); ctx.strokeStyle = '#8a8f98'; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        ctx.beginPath(); ctx.moveTo(x - w, y + 1);
+        for (let i = 1; i <= 3; i++) ctx.lineTo(x + (i % 2 ? w : -w), y + 1 + i * h / 3);
+        ctx.stroke();
+        ctx.fillStyle = '#4a90d9'; ctx.beginPath(); ctx.roundRect(x - w - 1.5, y - 2, w * 2 + 3, 4, 2); ctx.fill();
+        ctx.restore();
     }
 
-    // Кепка с пропеллером, лежащая на платформе
+    // Пламя из сопла: три слоя (оранжевый, жёлтый, светлое ядро), дрожит
+    function drawFlame(x, y, len) {
+        const layers = [[7.5, 1, '#f08a3c'], [5, 0.78, '#f9c74f'], [2.6, 0.5, '#fff6d5']];
+        for (const [w, k, col] of layers) {
+            ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(x - w, y);
+            ctx.quadraticCurveTo(x - w * 0.6, y + len * k * 0.7, x, y + len * k);
+            ctx.quadraticCurveTo(x + w * 0.6, y + len * k * 0.7, x + w, y);
+            ctx.closePath(); ctx.fill();
+        }
+    }
+
+    // Джетпак: два серебристых баллона с красной полосой и сопла с пламенем.
+    // firing = false — значок на платформе, без огня.
+    function drawJetpack(t, firing) {
+        for (const s of [-1, 1]) {
+            const x = s * 22;
+            const g = ctx.createLinearGradient(x - 6.5, 0, x + 6.5, 0);
+            g.addColorStop(0, '#aeb6c0'); g.addColorStop(0.45, '#f1f4f7'); g.addColorStop(1, '#8e98a4');
+            ctx.fillStyle = g; ctx.strokeStyle = '#5f6875'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.roundRect(x - 6.5, -13, 13, 26, 6.5); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = '#e5533d'; ctx.fillRect(x - 5.5, -4, 11, 4);
+            ctx.fillStyle = '#5f6875';
+            ctx.beginPath(); ctx.moveTo(x - 4, 12); ctx.lineTo(x + 4, 12); ctx.lineTo(x + 5.5, 17); ctx.lineTo(x - 5.5, 17);
+            ctx.closePath(); ctx.fill();
+            if (firing) drawFlame(x, 17, 21 + Math.sin(t * 45 + s * 2) * 4 + Math.random() * 6);
+        }
+    }
+
+    // Кепка с пропеллером: красный купол с синей долькой, козырёк и две
+    // жёлтые лопасти, которые «крутятся» (меняют длину)
+    function drawPropCap(cx, top, t, speed) {
+        ctx.save(); ctx.lineJoin = 'round';
+        ctx.fillStyle = '#e5533d';
+        ctx.beginPath(); ctx.arc(cx, top + 1, 11, Math.PI, 0); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#4a90d9';
+        ctx.beginPath(); ctx.moveTo(cx, top + 1); ctx.arc(cx, top + 1, 11, Math.PI * 1.36, Math.PI * 1.64); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = '#a8362a'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(cx, top + 1, 11, Math.PI, 0); ctx.closePath(); ctx.stroke();
+        ctx.fillStyle = '#a8362a';
+        ctx.beginPath(); ctx.ellipse(cx + 10, top + 1, 7, 2.3, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#5f6875'; ctx.fillRect(cx - 1.5, top - 16, 3, 7);
+        const a = Math.sin(t * 30 * speed);
+        ctx.fillStyle = '#f2c94c'; ctx.strokeStyle = '#c99a1e'; ctx.lineWidth = 1.5;
+        for (const s of [-1, 1]) {
+            ctx.beginPath(); ctx.ellipse(cx + s * 7 * a, top - 16, Math.abs(a) * 8 + 1.5, 2.6, 0, 0, Math.PI * 2);
+            ctx.fill(); ctx.stroke();
+        }
+        ctx.fillStyle = '#e5533d'; ctx.beginPath(); ctx.arc(cx, top - 16, 2.8, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+    }
+
+    // Пружина на платформе: витки и металлическая площадка сверху
+    function drawSpringIcon(x, y, w) {
+        const cx = x + w / 2;
+        ctx.save(); ctx.strokeStyle = '#8a8f98'; ctx.lineWidth = 2.4; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        ctx.beginPath(); ctx.moveTo(cx - 7, y);
+        for (let i = 1; i <= 4; i++) ctx.lineTo(cx + (i % 2 ? 7 : -7), y - i * 3.4);
+        ctx.stroke();
+        ctx.fillStyle = '#c9cfd6'; ctx.strokeStyle = '#5f6875'; ctx.lineWidth = 1.6;
+        ctx.beginPath(); ctx.roundRect(cx - 9, y - 18.5, 18, 4.5, 2.2); ctx.fill(); ctx.stroke();
+        ctx.restore();
+    }
+
+    // Кепка с пропеллером, лежащая на платформе (крутится медленно)
     function drawPropellerIcon(cx, y) {
-        ctx.save(); ctx.fillStyle = '#ffcc00'; ctx.shadowBlur = 8; ctx.shadowColor = '#ffcc00';
-        ctx.beginPath(); ctx.arc(cx, y - 1, 8, Math.PI, 0); ctx.closePath(); ctx.fill();
-        ctx.fillRect(cx - 1.5, y - 15, 3, 6);
-        ctx.fillStyle = '#ff55cc'; ctx.beginPath(); ctx.ellipse(cx, y - 15, 11, 2.5, 0, 0, Math.PI * 2); ctx.fill();
+        drawPropCap(cx, y - 2, performance.now() / 1000, 0.35);
+    }
+
+    // Джетпак, лежащий на платформе
+    function drawJetpackIcon(cx, y) {
+        ctx.save(); ctx.translate(cx, y - 11); ctx.scale(0.62, 0.62);
+        ctx.fillStyle = '#5f6875'; ctx.beginPath(); ctx.roundRect(-17, -7, 34, 8, 3); ctx.fill();
+        drawJetpack(0, false);
+        ctx.restore();
+    }
+
+    // Ботинок на пружине, лежащий на платформе
+    function drawBootsIcon(cx, y) {
+        ctx.save(); ctx.translate(cx, y);
+        ctx.strokeStyle = '#8a8f98'; ctx.lineWidth = 2.2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        ctx.beginPath(); ctx.moveTo(-6, -1);
+        for (let i = 1; i <= 3; i++) ctx.lineTo(i % 2 ? 6 : -6, -1 - i * 3);
+        ctx.stroke();
+        ctx.fillStyle = '#4a90d9'; ctx.strokeStyle = '#2f6fae'; ctx.lineWidth = 1.6;
+        ctx.beginPath(); ctx.moveTo(-9, -10); ctx.lineTo(-9, -21); ctx.lineTo(-2, -21); ctx.lineTo(-1, -15);
+        ctx.quadraticCurveTo(9, -16, 10, -10); ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.restore();
+    }
+
+    // Плашка бонуса внизу слева: название, секунды и полоска остатка
+    function drawBonusPill(name, left, total, color, y) {
+        const x = 14, w = 168, h = 34;
+        ctx.save();
+        ctx.shadowColor = 'rgba(119,110,101,0.22)'; ctx.shadowBlur = 10; ctx.shadowOffsetY = 3;
+        ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.roundRect(x, y, w, h, 17); ctx.fill();
+        ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+        ctx.fillStyle = color; ctx.font = '800 13px ' + UI_FONT; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+        ctx.fillText(`${name} · ${left.toFixed(1)} с`, x + 14, y + 14);
+        ctx.fillStyle = '#eee4da'; ctx.beginPath(); ctx.roundRect(x + 14, y + h - 9, w - 28, 4, 2); ctx.fill();
+        ctx.fillStyle = color; ctx.beginPath();
+        ctx.roundRect(x + 14, y + h - 9, Math.max(4, (w - 28) * Math.min(1, left / total)), 4, 2); ctx.fill();
         ctx.restore();
     }
 
@@ -1179,8 +1375,8 @@
         const r = m.r, col = m.color;
         // Куда смотрит зрачок — на игрока
         let lx = doodleX - m.x, ly = doodleY - m.y; const ll = Math.hypot(lx, ly) || 1; lx /= ll; ly /= ll;
-        ctx.lineWidth = 2; ctx.strokeStyle = col; ctx.shadowBlur = 12; ctx.shadowColor = col;
-        ctx.fillStyle = 'rgba(25,10,40,0.95)';
+        ctx.lineWidth = 2.5; ctx.strokeStyle = shadeColor(col, -0.35);
+        ctx.fillStyle = col;
         if (m.variant === 'bat') {
             const flap = Math.sin(m.phase * 7) * 0.6;
             for (const s of [-1, 1]) {
@@ -1189,7 +1385,7 @@
                 ctx.lineTo(s * r * 1.1, r * 0.1); ctx.closePath(); ctx.fill(); ctx.stroke();
             }
             ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-            ctx.shadowBlur = 0; ctx.fillStyle = '#ff3366';
+            ctx.fillStyle = '#3b3b3b';
             ctx.beginPath(); ctx.arc(-r * 0.38 + lx * 2, -r * 0.15 + ly * 2, 3, 0, Math.PI * 2);
             ctx.arc(r * 0.38 + lx * 2, -r * 0.15 + ly * 2, 3, 0, Math.PI * 2); ctx.fill();
             ctx.fillStyle = '#fff';
@@ -1201,12 +1397,12 @@
             ctx.moveTo(r * 0.7, -r * 0.6); ctx.lineTo(r * 0.95, -r * 1.25); ctx.lineTo(r * 0.3, -r * 0.8);
             ctx.stroke();
             ctx.beginPath(); ctx.roundRect(-r * 1.1, -r * 0.85, r * 2.2, r * 1.7, r * 0.5); ctx.fill(); ctx.stroke();
-            ctx.shadowBlur = 0; ctx.fillStyle = '#fff';
+            ctx.fillStyle = '#fff';
             ctx.beginPath(); ctx.arc(-r * 0.42, -r * 0.15, 5, 0, Math.PI * 2); ctx.arc(r * 0.42, -r * 0.15, 5, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = '#05050A';
+            ctx.fillStyle = '#3b3b3b';
             ctx.beginPath(); ctx.arc(-r * 0.42 + lx * 2, -r * 0.15 + ly * 2, 2.4, 0, Math.PI * 2);
             ctx.arc(r * 0.42 + lx * 2, -r * 0.15 + ly * 2, 2.4, 0, Math.PI * 2); ctx.fill();
-            ctx.strokeStyle = col; ctx.beginPath();   // сердитые брови
+            ctx.strokeStyle = shadeColor(col, -0.45); ctx.beginPath();   // сердитые брови
             ctx.moveTo(-r * 0.75, -r * 0.5); ctx.lineTo(-r * 0.2, -r * 0.3); ctx.moveTo(r * 0.75, -r * 0.5); ctx.lineTo(r * 0.2, -r * 0.3); ctx.stroke();
             ctx.fillStyle = '#fff';  // зубы
             ctx.beginPath();
@@ -1219,9 +1415,9 @@
             ctx.lineTo(r, r * 0.6);
             for (let i = 3; i >= 0; i--) ctx.quadraticCurveTo(-r + (i + 0.5) * r / 2, r * 0.95 + wob * (i % 2 ? 1 : -1), -r + i * r / 2, r * 0.6);
             ctx.closePath(); ctx.fill(); ctx.stroke();
-            ctx.shadowBlur = 0; ctx.fillStyle = '#fff';
+            ctx.fillStyle = '#fff';
             ctx.beginPath(); ctx.arc(0, -r * 0.2, r * 0.42, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = '#05050A';
+            ctx.fillStyle = '#3b3b3b';
             ctx.beginPath(); ctx.arc(lx * r * 0.18, -r * 0.2 + ly * r * 0.18, r * 0.2, 0, Math.PI * 2); ctx.fill();
         }
         ctx.restore();
@@ -1231,15 +1427,15 @@
     function drawDoodleHole(h) {
         ctx.save(); ctx.translate(h.x, h.y);
         const g = ctx.createRadialGradient(0, 0, 2, 0, 0, h.r + 10);
-        g.addColorStop(0, '#000'); g.addColorStop(0.6, 'rgba(20,0,40,0.95)'); g.addColorStop(1, 'rgba(122,60,255,0)');
+        g.addColorStop(0, '#2b2b2b'); g.addColorStop(0.6, 'rgba(60,58,50,0.9)'); g.addColorStop(1, 'rgba(60,58,50,0)');
         ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, h.r + 10, 0, Math.PI * 2); ctx.fill();
-        ctx.rotate(h.rot); ctx.lineWidth = 2; ctx.shadowBlur = 10; ctx.shadowColor = '#b57cff';
+        ctx.rotate(h.rot); ctx.lineWidth = 2;
         for (let i = 0; i < 3; i++) {
             ctx.rotate(Math.PI * 2 / 3);
-            ctx.strokeStyle = i % 2 ? '#b57cff' : '#7a3cff';
+            ctx.strokeStyle = i % 2 ? '#9b7ad8' : '#6d4fae';
             ctx.beginPath(); ctx.arc(h.r * 0.35, 0, h.r * 0.75, -0.3, 1.9); ctx.stroke();
         }
-        ctx.shadowBlur = 0; ctx.fillStyle = '#000';
+        ctx.fillStyle = '#2b2b2b';
         ctx.beginPath(); ctx.arc(0, 0, h.r * 0.45, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
     }
@@ -1249,10 +1445,10 @@
         if (doodleDead) return;
         doodleDead = { kind, t: 0, hx: hx || doodleX, hy: hy || doodleY };
         doodleShake = kind === 'fall' ? 10 : 14;
-        flashScreen(kind === 'hole' ? '#7a3cff' : '#ff3366', 0.45);
+        flashScreen(kind === 'hole' ? '#6d4fae' : '#e5533d', 0.45);
         playSynth('hit'); shakeScreen();
         doodleJetpackUntil = 0; doodlePropUntil = 0; doodleBootsUntil = 0;
-        if (kind === 'monster') { doodleVy = Math.max(doodleVy, 120); createParticle(doodleX, doodleY, '#ff3366', 14, 520, 3); }
+        if (kind === 'monster') { doodleVy = Math.max(doodleVy, 120); createParticle(doodleX, doodleY, '#e5533d', 14, 520, 3); }
         resetCombo();
     }
 
@@ -1314,10 +1510,16 @@
         } else {
             if (jetpackOn) {
                 doodleVy = DOODLE_JETPACK_VY;
-                if (Math.random() < 0.6) createParticle(doodleX - 21, doodleY + 22, Math.random() < 0.5 ? '#ff8800' : '#ffcc00', 2, 260, 3);
+                if (Math.random() < 0.75) {
+                    // Искры и дымок из обоих сопел
+                    const side = Math.random() < 0.5 ? -22 : 22;
+                    createParticle(doodleX + side, doodleY + 22, Math.random() < 0.5 ? '#f08a3c' : '#f9c74f', 1, 220, 2.6);
+                    if (Math.random() < 0.5) particles.push({ x: doodleX + side, y: doodleY + 30, vx: (Math.random() - 0.5) * 40,
+                        vy: 150 + Math.random() * 80, life: 0.9, color: 'rgba(170,160,150,0.45)', size: 4 + Math.random() * 3, g: 0 });
+                }
             } else if (propOn) {
                 doodleVy = DOODLE_PROPELLER_VY;
-                if (Math.random() < 0.25) createParticle(doodleX, doodleY - 30, 'rgba(255,204,0,0.8)', 1, 200, 2);
+                if (Math.random() < 0.25) createParticle(doodleX, doodleY - 30, 'rgba(217,164,0,0.8)', 1, 200, 2);
             } else {
                 doodleVy += DOODLE_GRAVITY * dt;
             }
@@ -1351,10 +1553,8 @@
                 continue;
             }
 
-            let color = p.type === 'coin' ? '#ffcc00' : p.type === 'moving' ? '#00ccff'
-                : p.type === 'break' ? '#ff3366' : p.type === 'spring' ? '#00ccff'
-                : p.type === 'jetpack' ? '#ff8800' : p.type === 'boots' ? '#00ccff'
-                : p.type === 'propeller' ? '#ffcc00' : p.type === 'vanish' ? '#e6f1ff' : '#00ff88';
+            const pc = PLATFORM_COLORS[p.type] || PLATFORM_COLORS.normal;
+            let color = pc[1];
             if (p.type === 'break' && p.broken) {
                 // Сломанная платформа не исчезает, а разламывается пополам и
                 // падает, кувыркаясь и тая, — видно, что именно произошло.
@@ -1363,7 +1563,7 @@
                 p.rot = (p.rot || 0) + 3.2 * dt;
                 let a = Math.max(0, 1 - p.fallY / 260);
                 if (a > 0) {
-                    ctx.globalAlpha = a; ctx.strokeStyle = color; ctx.fillStyle = 'rgba(10,15,30,0.85)'; ctx.lineWidth = 2;
+                    ctx.globalAlpha = a; ctx.strokeStyle = color; ctx.fillStyle = pc[0]; ctx.lineWidth = 2;
                     for (let side of [-1, 1]) {
                         ctx.save();
                         ctx.translate(p.x + p.w / 2 + side * (p.w / 4 + p.fallY * 0.12), p.y + 7 + p.fallY);
@@ -1383,18 +1583,18 @@
                     ctx.setLineDash([]); ctx.globalAlpha = 1;
                 }
             } else {
-                ctx.shadowBlur = 10; ctx.shadowColor = color; ctx.fillStyle = 'rgba(10,15,30,0.85)';
+                ctx.fillStyle = pc[0];
                 ctx.strokeStyle = color; ctx.lineWidth = 2;
                 if (p.type === 'vanish') {
                     // Пунктир и лёгкое мерцание — сразу видно, что «одноразовая»
                     ctx.globalAlpha = 0.7 + 0.3 * Math.sin(time / 1000 * 5 + p.x);
-                    ctx.setLineDash([6, 4]); ctx.fillStyle = 'rgba(230,241,255,0.08)';
+                    ctx.setLineDash([6, 4]); ctx.fillStyle = 'rgba(255,255,255,0.85)';
                 }
-                ctx.beginPath(); ctx.roundRect(p.x, p.y, p.w, 14, 7); ctx.fill(); ctx.stroke(); ctx.shadowBlur = 0;
+                ctx.beginPath(); ctx.roundRect(p.x, p.y, p.w, 14, 7); ctx.fill(); ctx.stroke();
                 ctx.setLineDash([]); ctx.globalAlpha = 1;
                 if (p.type === 'spring') drawSpringIcon(p.x, p.y, p.w);
-                if (p.type === 'jetpack') { ctx.fillStyle = '#ff8800'; ctx.font = '16px Arial'; ctx.textAlign = 'center'; ctx.fillText('🎒', p.x + p.w/2, p.y + 11); }
-                if (p.type === 'boots') { ctx.fillStyle = '#00ccff'; ctx.font = '16px Arial'; ctx.textAlign = 'center'; ctx.fillText('🥾', p.x + p.w/2, p.y + 11); }
+                if (p.type === 'jetpack') drawJetpackIcon(p.x + p.w / 2, p.y);
+                if (p.type === 'boots') drawBootsIcon(p.x + p.w / 2, p.y);
                 if (p.type === 'propeller') drawPropellerIcon(p.x + p.w / 2, p.y);
             }
 
@@ -1407,19 +1607,19 @@
                 feet >= p.y && prevFeet <= p.y + 20) {
                 if (p.type === 'break') {
                     p.broken = true; playSynth('hit'); resetCombo();
-                    createParticle(p.x + p.w / 2, p.y + 7, '#ff3366', 8, 420, 2.5);
+                    createParticle(p.x + p.w / 2, p.y + 7, '#a77b4f', 8, 420, 2.5);
                 }
                 else if (p.type === 'jetpack') {
                     doodleJetpackUntil = nowMs + DOODLE_JETPACK_DURATION; doodlePropUntil = 0;
-                    playSynth('good'); createFloatingText(doodleX, doodleY, '🎒 ДЖЕТПАК!', '#ff8800');
+                    playSynth('good'); createFloatingText(doodleX, doodleY, '🎒 ДЖЕТПАК!', '#f08a3c');
                 } else if (p.type === 'propeller') {
                     doodlePropUntil = nowMs + DOODLE_PROPELLER_DURATION;
-                    playSynth('good'); createFloatingText(doodleX, doodleY, '🧢 ПРОПЕЛЛЕР!', '#ffcc00');
+                    playSynth('good'); createFloatingText(doodleX, doodleY, '🧢 ПРОПЕЛЛЕР!', '#d9a400');
                 } else if (p.type === 'boots') {
                     doodleBootsUntil = nowMs + DOODLE_BOOTS_DURATION;
                     doodleVy = DOODLE_JUMP_NORMAL * DOODLE_BOOTS_MULTIPLIER;
                     doodleSquash = 0.62; playSynth('good');
-                    createFloatingText(doodleX, doodleY, '🥾 ПРУЖИНЫ 10с!', '#00ccff');
+                    createFloatingText(doodleX, doodleY, '🥾 ПРУЖИНЫ 10с!', '#4a90d9');
                 } else {
                     let base = p.type === 'coin' ? DOODLE_JUMP_COIN
                              : p.type === 'spring' ? DOODLE_JUMP_SPRING
@@ -1433,11 +1633,11 @@
                     createDust(doodleX, p.y, color);
                     if (p.type === 'coin') {
                         bonusCoins += 1; bumpCombo(doodleX, doodleY - 20);
-                        createFloatingText(doodleX, doodleY, `+coin${combo>=3 ? ' x'+combo : ''}`, '#ffcc00');
+                        createFloatingText(doodleX, doodleY, `+coin${combo>=3 ? ' x'+combo : ''}`, '#d9a400');
                     } else if (p.type === 'spring') {
-                        createFloatingText(doodleX, doodleY, 'БОИНГ!', '#00ccff');
+                        createFloatingText(doodleX, doodleY, 'БОИНГ!', '#4a90d9');
                     } else {
-                        if (p.type === 'vanish') { p.gone = true; createParticle(p.x + p.w / 2, p.y + 7, '#e6f1ff', 8, 300, 2); }
+                        if (p.type === 'vanish') { p.gone = true; createParticle(p.x + p.w / 2, p.y + 7, '#b9b0a6', 8, 300, 2); }
                         resetCombo(); // приземлился на обычную платформу — цепочка монет прервалась
                     }
                 }
@@ -1466,7 +1666,7 @@
                 m.dead = 'knock'; m.t = 0; m.vx = (m.x < doodleX ? -1 : 1) * 280; m.vy = -320;
                 doodleBonus += DOODLE_MONSTER_KNOCK_POINTS; doodleShake = Math.max(doodleShake, 5);
                 playSynth('stomp'); haptic('light');
-                createFloatingText(m.x, m.y - 20, `+${DOODLE_MONSTER_KNOCK_POINTS}`, '#ffcc00');
+                createFloatingText(m.x, m.y - 20, `+${DOODLE_MONSTER_KNOCK_POINTS}`, '#d9a400');
             } else if (doodleVy > 0 && hit.y < m.y - m.r * 0.25) {
                 // Сверху и в падении — растоптал!
                 m.dead = 'stomp'; m.t = 0; m.vy = 0;
@@ -1476,7 +1676,7 @@
                 doodleShake = Math.max(doodleShake, 7); flashScreen('#ffffff', 0.16);
                 playSynth('stomp'); haptic('medium');
                 createParticle(m.x, m.y, m.color, 16, 560, 3);
-                createFloatingText(m.x, m.y - 26, `💥 +${DOODLE_MONSTER_POINTS}`, '#ffcc00');
+                createFloatingText(m.x, m.y - 26, `💥 +${DOODLE_MONSTER_POINTS}`, '#d9a400');
             } else {
                 doodleDie('monster', m.x, m.y);
             }
@@ -1502,18 +1702,11 @@
         updateAndDrawParticles(dt);
         ctx.restore();   // конец тряски — подписи ниже не трясутся
 
-        // Остаток действия бонусов — иначе непонятно, когда кончатся
-        ctx.font = 'bold 14px Rajdhani, "Segoe UI", Roboto, Arial, sans-serif'; ctx.textAlign = 'left';
-        if (bootsOn) {
-            let left = Math.max(0, (doodleBootsUntil - nowMs) / 1000);
-            ctx.fillStyle = '#00ccff';
-            ctx.fillText(`🥾 ПРУЖИНЫ ${left.toFixed(1)}с`, 14, height - 20);
-        }
-        if (propOn) {
-            let left = Math.max(0, (doodlePropUntil - nowMs) / 1000);
-            ctx.fillStyle = '#ffcc00';
-            ctx.fillText(`🧢 ПРОПЕЛЛЕР ${left.toFixed(1)}с`, 14, height - (bootsOn ? 40 : 20));
-        }
+        // Остаток действия бонусов — плашки над кнопкой «Завершить игру»
+        if (bootsOn) drawBonusPill('Пружины', Math.max(0, (doodleBootsUntil - nowMs) / 1000),
+                                   DOODLE_BOOTS_DURATION / 1000, '#4a90d9', height - 142);
+        if (propOn) drawBonusPill('Пропеллер', Math.max(0, (doodlePropUntil - nowMs) / 1000),
+                                  DOODLE_PROPELLER_DURATION / 1000, '#e5533d', height - (bootsOn ? 184 : 142));
 
         // Очки: высота / DOODLE_PX_PER_POINT + бонусы за монстров
         const newScore = Math.floor(doodleHeight / DOODLE_PX_PER_POINT) + doodleBonus;
@@ -1531,7 +1724,7 @@
     }
     const loopDoodleSafe = safeFrame(loopDoodle);
 
-    // ===== RESALE 2048 =====
+    // ===== 2048 =====
     // Каждая плитка — объект {id, v, r, c} со своим DOM-элементом. Ход
     // считается по плиткам, а не по массиву чисел: так известно, КАКАЯ
     // плитка куда поехала, и её можно плавно довезти анимацией.
@@ -1633,11 +1826,11 @@
             t.el.style.transition = 'none';  // новая плитка встаёт сразу, без «подъезда» из угла
             grid2048.appendChild(t.el);
         }
-        const conf = tMap[t.v] || { n: 'MAX', c: '#0f1a26', tc: '#00ff88', svg: '' };
-        t.el.innerHTML = `<div class="tile-inner" style="background:${conf.c}; border:1px solid ${conf.tc}; box-shadow:0 0 12px ${conf.tc}30; color:${conf.tc};">
+        const conf = tMap[t.v] || { n: 'MAX', c: '#3c3a32', tc: '#f9f6f2', svg: '' };
+        t.el.innerHTML = `<div class="tile-inner" style="background:${conf.c}; color:${conf.tc};">
             <svg class="tile-icon" style="color:${conf.tc}" viewBox="0 0 24 24">${conf.svg}</svg>
             <div class="tile-name" style="color:${conf.tc}">${conf.n}</div>
-            <div class="tile-val" style="color:#fff">${t.v}</div></div>`;
+            <div class="tile-val" style="color:${conf.tc}">${t.v}</div></div>`;
         t.el.style.transform = `translate(${L.pos(t.c)}px, ${L.pos(t.r)}px)`;
         if (cls) { t.el.classList.remove('tile-pop', 'tile-merged', 'tile-merged-big'); void t.el.offsetWidth; t.el.classList.add(cls); }
         t.el.style.zIndex = (cls === 'tile-merged' || cls === 'tile-merged-big') ? 3 : 2;
@@ -1678,7 +1871,7 @@
         grid2048.classList.toggle('hammer-mode', hammerMode2048);
         if (hammerMode2048) {
             const rect = grid2048.getBoundingClientRect();
-            createFloatingText(rect.left + rect.width / 2, rect.top - 8, '🔨 Тапни по плитке', '#ffcc00');
+            createFloatingText(rect.left + rect.width / 2, rect.top - 8, '🔨 Тапни по плитке', '#d9a400');
         }
         render2048Tools();
     }
@@ -1695,15 +1888,15 @@
         if (hammers2048 <= 0) { hammerMode2048 = false; grid2048.classList.remove('hammer-mode'); render2048Tools(); return false; }
         if (!(r >= 0 && r <= 3 && c >= 0 && c <= 3)) return false;
         const t = tileAt(r, c), ctr = cellCenter2048(r, c);
-        if (!t) { createFloatingText(ctr.x, ctr.y, 'Пусто', '#8892b0'); return false; }
-        if (tiles2048.filter(q => !q.dead).length <= 1) { createFloatingText(ctr.x, ctr.y, 'Последняя!', '#8892b0'); return false; }
+        if (!t) { createFloatingText(ctr.x, ctr.y, 'Пусто', '#9b9188'); return false; }
+        if (tiles2048.filter(q => !q.dead).length <= 1) { createFloatingText(ctr.x, ctr.y, 'Последняя!', '#9b9188'); return false; }
         hammers2048--; hammerMode2048 = false; grid2048.classList.remove('hammer-mode');
         tiles2048 = tiles2048.filter(q => q !== t);
         const el = t.el; t.el = null; t.dead = true;
         if (el) { el.classList.add('tile-smash'); setTimeout(() => el.remove(), 240); }
-        const conf = tMap[t.v] || { tc: '#00ff88' };
-        createParticle(ctr.x, ctr.y, conf.tc, 18, 760, 3.2);
-        createParticle(ctr.x, ctr.y, '#ffcc00', 8, 520, 2);
+        const conf = tMap[t.v] || { fx: '#776e65' };
+        createParticle(ctr.x, ctr.y, conf.fx, 18, 760, 3.2);
+        createParticle(ctr.x, ctr.y, '#d9a400', 8, 520, 2);
         playSynth('stomp'); shakeScreen();
         history2048 = null;  // удар молотком не отменяется — иначе отмена «вернула бы» плитку
         board2048 = boardValues();
@@ -1721,7 +1914,7 @@
         if (!isPlaying || currentGame !== '2048' || moving2048) return false;
         if (undos2048 <= 0) return false;
         const rect = grid2048.getBoundingClientRect();
-        if (!history2048) { createFloatingText(rect.left + rect.width / 2, rect.top - 8, 'Нечего отменять', '#8892b0'); return false; }
+        if (!history2048) { createFloatingText(rect.left + rect.width / 2, rect.top - 8, 'Нечего отменять', '#9b9188'); return false; }
         const snap = history2048; history2048 = null; undos2048--;
         if (hammerMode2048) { hammerMode2048 = false; grid2048.classList.remove('hammer-mode'); }
         tiles2048.forEach(t => { if (t.el) t.el.remove(); t.el = null; });
@@ -1731,7 +1924,7 @@
         board2048 = boardValues();
         clearTimeout(gameOverTimer2048); gameOverTimer2048 = null;
         playSynth('jump');
-        createFloatingText(rect.left + rect.width / 2, rect.top - 8, '↩️ Ход отменён', '#00ccff');
+        createFloatingText(rect.left + rect.width / 2, rect.top - 8, '↩️ Ход отменён', '#4a90d9');
         updateHud(); render2048Tools();
         return true;
     }
@@ -1795,25 +1988,25 @@
             let bigMerge = 0;
             merges.forEach(m => {
                 if (m.t.dead) return;
-                const ctr = cellCenter2048(m.t.r, m.t.c), conf = tMap[m.t.v] || { tc: '#00ff88', n: 'MAX' };
-                createParticle(ctr.x, ctr.y, conf.tc, Math.min(26, 6 + Math.log2(m.t.v) * 2), 380 + Math.log2(m.t.v) * 40, 2.6);
-                createFloatingText(ctr.x, ctr.y - 6, `+${m.pts}`, conf.tc);
+                const ctr = cellCenter2048(m.t.r, m.t.c), conf = tMap[m.t.v] || { fx: '#776e65', n: 'MAX' };
+                createParticle(ctr.x, ctr.y, conf.fx, Math.min(26, 6 + Math.log2(m.t.v) * 2), 380 + Math.log2(m.t.v) * 40, 2.6);
+                createFloatingText(ctr.x, ctr.y - 6, `+${m.pts}`, conf.fx);
                 if (m.t.v >= T2048_BIG_TILE) bigMerge = Math.max(bigMerge, m.t.v);
                 // Крупные надписи — над и под сеткой, а не на плитке, чтобы не слипались с «+N»
                 const gr = grid2048.getBoundingClientRect();
                 if (m.t.v > maxTile2048) {
-                    if (m.t.v >= 64) createFloatingText(gr.left + gr.width / 2, gr.top - 30, `НОВЫЙ ЛОТ: ${conf.n}`, '#ffffff');
+                    if (m.t.v >= 64) createFloatingText(gr.left + gr.width / 2, gr.top - 30, `НОВЫЙ ЛОТ: ${conf.n}`, '#776e65');
                     maxTile2048 = m.t.v;
                 }
                 // Первая плитка 512 / 1024 — награда: отмена хода
                 if (T2048_UNDO_TILES.includes(m.t.v) && !undoGranted2048[m.t.v]) {
                     undoGranted2048[m.t.v] = true; undos2048++; gained = 'undo';
-                    createFloatingText(gr.left + gr.width / 2, gr.bottom + 22, '↩️ +1 отмена хода', '#00ccff');
+                    createFloatingText(gr.left + gr.width / 2, gr.bottom + 22, '↩️ +1 отмена хода', '#4a90d9');
                 }
             });
             if (bigMerge) {
-                const conf = tMap[bigMerge] || { tc: '#00ff88' };
-                flashScreen(conf.tc, 0.28); playSynth('big'); haptic('medium');
+                const conf = tMap[bigMerge] || { fx: '#edc22e' };
+                flashScreen(conf.fx, 0.22); playSynth('big'); haptic('medium');
                 const rect = grid2048.getBoundingClientRect();
                 createConfetti(rect.left + rect.width / 2, rect.top + rect.height * 0.6, 22, 1.1);
             }
@@ -1828,9 +2021,9 @@
                     showComboToast(`🔥 КОМБО x${combo}`); playSynth('good');
                     if (combo % 10 === 0) bonusCoins += 1;
                 } else if (mergedCount >= 2) {
-                    createFloatingText(rect.left + rect.width / 2, rect.top - 6, mergedCount >= 3 ? `✨ x${mergedCount} СЛИЯНИЯ!` : '✨ ДВОЙНОЕ!', '#ffcc00');
+                    createFloatingText(rect.left + rect.width / 2, rect.top - 6, mergedCount >= 3 ? `✨ x${mergedCount} СЛИЯНИЯ!` : '✨ ДВОЙНОЕ!', '#d9a400');
                 } else if (combo >= 2) {
-                    createFloatingText(rect.left + rect.width / 2, rect.top - 6, `комбо x${combo}`, '#ffcc00');
+                    createFloatingText(rect.left + rect.width / 2, rect.top - 6, `комбо x${combo}`, '#d9a400');
                 }
                 // Молоток зарабатывается серией ходов со слиянием (не покупается).
                 // Счётчик отдельный от combo и НЕ откатывается отменой хода —
@@ -1840,7 +2033,7 @@
                     hammerProgress2048 = 0;
                     if (hammers2048 < T2048_HAMMER_MAX) {
                         hammers2048++; gained = gained || 'hammer';
-                        createFloatingText(rect.left + rect.width / 2, rect.top + rect.height + 48, '🔨 +1 молоток', '#ffcc00');
+                        createFloatingText(rect.left + rect.width / 2, rect.top + rect.height + 48, '🔨 +1 молоток', '#d9a400');
                         playSynth('good');
                     }
                 }
@@ -1893,7 +2086,7 @@
     // же клеткам и этому лучу, а уход змейки лишь освобождает клетки, —
     // поэтому порядок, в котором уползают все, существует всегда.
     const ARR_VEC = { U: [0, -1], D: [0, 1], L: [-1, 0], R: [1, 0] };
-    const ARR_COLOR = { U: '#00ccff', D: '#ffcc00', L: '#ff55cc', R: '#00ff88' };
+    const ARR_COLOR = { U: '#4a90d9', D: '#f08a3c', L: '#d9579a', R: '#6aaa64' };
     const ARR_LIVES = 3;
     // Новые механики по уровням (чтобы игра не была однообразной):
     const ARR_LOCK_LEVEL = 3;      // «замороженные» змейки: ждут, пока уползут N других
@@ -2069,7 +2262,7 @@
         if (sn.lock > 0) {
             // Замороженная: не штрафуем, только подсказываем, сколько ждать
             sn.shiver = 0.3; playSynth('jump');
-            createFloatingText(hx, hy - 18, `🔒 ещё ${sn.lock}`, '#9fdcff');
+            createFloatingText(hx, hy - 18, `🔒 ещё ${sn.lock}`, '#5d8fbf');
             return;
         }
         const block = arrBlocker(sn);
@@ -2079,8 +2272,8 @@
             arr.mistakes++;
             lives = Math.max(0, lives - 1); resetCombo(); updateHud();
             playSynth('hit'); shakeScreen();
-            createFloatingText(hx, hy - 18, block.rock ? 'КАМЕНЬ!' : 'ЗАНЯТО!', '#ff3366');
-            if (lives <= 0) { arr.clearing = true; flashScreen('#ff3366', 0.4); setTimeout(gameOver, 650); }
+            createFloatingText(hx, hy - 18, block.rock ? 'КАМЕНЬ!' : 'ЗАНЯТО!', '#e5533d');
+            if (lives <= 0) { arr.clearing = true; flashScreen('#e5533d', 0.4); setTimeout(gameOver, 650); }
         } else {
             sn.state = 'fly'; sn.v = 6; sn.s = 0;   // скорость в клетках/с, растёт
             bumpCombo(hx, hy - 20);
@@ -2088,7 +2281,7 @@
             if (sn.gold) {
                 gain += ARR_GOLD_BONUS;
                 createConfetti(hx, hy, 14, 1.3); playSynth('big');
-                createFloatingText(hx, hy - 42, `⭐ +${ARR_GOLD_BONUS}`, '#ffd700');
+                createFloatingText(hx, hy - 42, `⭐ +${ARR_GOLD_BONUS}`, '#d9a400');
             }
             score += gain; updateHud();
             // Ушла змейка — со всех замков снимаем по единице
@@ -2097,8 +2290,8 @@
                 q.lock--;
                 if (q.lock === 0) {
                     const [qx, qy] = snakePoint(q, q.cells.length - 1, L);
-                    createFloatingText(qx, qy - 16, '🔓', '#9fdcff');
-                    createParticle(qx, qy, '#9fdcff', 10, 380, 2.5);
+                    createFloatingText(qx, qy - 16, '🔓', '#5d8fbf');
+                    createParticle(qx, qy, '#5d8fbf', 10, 380, 2.5);
                 }
             });
             playSynth('good');
@@ -2126,17 +2319,17 @@
 
     function drawSnake(sn, L, alpha, scale) {
         // Золотая — бонусная, ледяная — «замороженная» (ждёт, пока уползут другие)
-        const col = sn.gold ? '#fff1a8' : sn.lock > 0 ? '#d4ecff' : ARR_COLOR[sn.dir];
+        const col = sn.gold ? '#edc22e' : sn.lock > 0 ? '#a9bfd3' : ARR_COLOR[sn.dir];
         const red = sn.state === 'bump' || sn.hit > 0;
-        const color = red ? '#ff3366' : col;
+        const color = red ? '#e5533d' : col;
         const pts = snakePath(sn, L);
         const [hx, hy] = pts[pts.length - 1];
         const [dx, dy] = ARR_VEC[sn.dir];
-        const w = L.cell * 0.30 * scale;
+        const w = L.cell * 0.22 * scale;
         const rad = L.cell * 0.42;
         // Голова: шея чуть продлевается вперёд, на конце — шеврон «>» из той же
         // трубки (две короткие дуги-крылышки с круглыми концами).
-        const hs = L.cell * 0.30 * scale;
+        const hs = L.cell * 0.25 * scale;
         const tip = [hx + dx * hs * 0.85, hy + dy * hs * 0.85];
         const wingL = [tip[0] - dx * hs + dy * hs * 0.9, tip[1] - dy * hs - dx * hs * 0.9];
         const wingR = [tip[0] - dx * hs - dy * hs * 0.9, tip[1] - dy * hs + dx * hs * 0.9];
@@ -2145,45 +2338,39 @@
 
         ctx.save(); ctx.globalAlpha = alpha; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
         if (sn.shiver > 0) ctx.translate(Math.sin(sn.shiver * 70) * 4 * (sn.shiver / 0.3), 0);  // «дрожь» замороженной
-        // 1) неоновый контур со свечением
-        ctx.shadowBlur = 16; ctx.shadowColor = color; ctx.strokeStyle = color;
-        ctx.lineWidth = w + 5; traceSmooth(body, rad); ctx.stroke();
-        ctx.lineWidth = w * 0.62 + 5; chevron(); ctx.stroke();
-        ctx.shadowBlur = 0;
-        // 2) тёмная сердцевина трубки
-        // Сердцевина тоже своя: золотая у бонусной, «ледяная» у замороженной —
-        // иначе золотую не отличить от жёлтых змеек, смотрящих вниз
-        ctx.strokeStyle = red ? 'rgba(70,10,25,0.96)' : sn.gold ? 'rgba(150,110,0,0.96)'
-            : sn.lock > 0 ? 'rgba(45,70,100,0.96)' : 'rgba(10,15,30,0.96)';
-        ctx.lineWidth = w - 1; traceSmooth(body, rad); ctx.stroke();
-        ctx.lineWidth = Math.max(1, w * 0.62 - 1); chevron(); ctx.stroke();
-        // 3) мягкий световой «шов» по центру — даёт объём
-        const grad = ctx.createLinearGradient(pts[0][0], pts[0][1], hx, hy);
-        grad.addColorStop(0, 'rgba(255,255,255,0)'); grad.addColorStop(1, color);
-        ctx.strokeStyle = grad; ctx.globalAlpha = alpha * 0.55; ctx.lineWidth = Math.max(1.5, w * 0.16);
+        // 1) тёмный контур трубки
+        const edge = shadeColor(color, -0.3);
+        ctx.strokeStyle = edge;
+        ctx.lineWidth = w + 4.5; traceSmooth(body, rad); ctx.stroke();
+        ctx.lineWidth = w * 0.8 + 4.5; chevron(); ctx.stroke();
+        // 2) сама трубка — плоский цвет
+        ctx.strokeStyle = color;
+        ctx.lineWidth = w; traceSmooth(body, rad); ctx.stroke();
+        ctx.lineWidth = w * 0.8; chevron(); ctx.stroke();
+        // 3) светлый блик по центру — даёт объём
+        ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = Math.max(1.5, w * 0.22);
         traceSmooth(body, rad); ctx.stroke();
-        // 4) яркий кончик головы
-        ctx.globalAlpha = alpha; ctx.fillStyle = color; ctx.shadowBlur = 10; ctx.shadowColor = color;
+        // 4) кончик головы
+        ctx.fillStyle = edge;
         ctx.beginPath(); ctx.arc(tip[0], tip[1], Math.max(2, w * 0.2), 0, Math.PI * 2); ctx.fill();
         // 5) значок: звезда у золотой, замок с числом — у замороженной
         if (sn.gold && pts.length) {
             const mp = pts[Math.floor((pts.length - 1) / 2)] || pts[0];
-            const br = Math.max(8, L.cell * 0.24);
-            ctx.shadowBlur = 12; ctx.shadowColor = '#ffd700';
-            ctx.fillStyle = '#ffd700'; ctx.beginPath(); ctx.arc(mp[0], mp[1], br, 0, Math.PI * 2); ctx.fill();
-            ctx.shadowBlur = 0; ctx.fillStyle = '#5a3d00'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            const br = Math.max(8, L.cell * 0.2);
+            ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#c99a1e'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.arc(mp[0], mp[1], br, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = '#d4a017'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             ctx.font = `bold ${Math.round(br * 1.5)}px Arial, sans-serif`;
             ctx.fillText('★', mp[0], mp[1] + 1);
             ctx.textBaseline = 'alphabetic';
         }
         if (sn.lock > 0 && pts.length) {
             const mp = pts[Math.floor((pts.length - 1) / 2)] || pts[0];
-            const br = Math.max(8, L.cell * 0.24);
-            ctx.shadowBlur = 8; ctx.shadowColor = '#d4ecff';
-            ctx.fillStyle = 'rgba(10,20,40,0.95)'; ctx.strokeStyle = '#d4ecff'; ctx.lineWidth = 2;
+            const br = Math.max(8, L.cell * 0.2);
+            ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#7f98ae'; ctx.lineWidth = 2;
             ctx.beginPath(); ctx.arc(mp[0], mp[1], br, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-            ctx.shadowBlur = 0; ctx.fillStyle = '#e6f1ff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.font = `bold ${Math.round(br * 1.2)}px Orbitron, "Segoe UI", Roboto, Arial, sans-serif`;
+            ctx.fillStyle = '#5d7489'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.font = `bold ${Math.round(br * 1.2)}px ` + UI_FONT;
             ctx.fillText(String(sn.lock), mp[0], mp[1] + 1);
             ctx.textBaseline = 'alphabetic';
         }
@@ -2194,15 +2381,14 @@
     function drawRock(x, y, cell) {
         const cx = x + cell / 2, cy = y + cell / 2, R = cell / 2 - cell * 0.12;
         ctx.save();
-        ctx.fillStyle = 'rgba(40,46,66,0.95)'; ctx.strokeStyle = '#8892b0'; ctx.lineWidth = 2;
-        ctx.shadowBlur = 6; ctx.shadowColor = '#8892b0';
+        ctx.fillStyle = '#cdc1b4'; ctx.strokeStyle = '#a39383'; ctx.lineWidth = 2;
         ctx.beginPath();
         for (let i = 0; i < 8; i++) {
             const a = i * Math.PI / 4 + 0.3, rr = R * (i % 2 ? 0.84 : 1);
             ctx.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr);
         }
         ctx.closePath(); ctx.fill(); ctx.stroke();
-        ctx.shadowBlur = 0; ctx.strokeStyle = 'rgba(136,146,176,0.6)'; ctx.lineWidth = 1.2;
+        ctx.strokeStyle = 'rgba(119,110,101,0.55)'; ctx.lineWidth = 1.2;
         ctx.beginPath(); ctx.moveTo(cx - R * 0.4, cy - R * 0.2); ctx.lineTo(cx, cy + R * 0.1); ctx.lineTo(cx + R * 0.3, cy - R * 0.35); ctx.stroke();
         ctx.restore();
     }
@@ -2226,7 +2412,7 @@
         arr.celebrate = { t: 0, stars, lines };
         createConfetti(width * 0.15, height * 0.92, 26, 0.6);
         createConfetti(width * 0.85, height * 0.92, 26, 0.6);
-        flashScreen('#00ff88', 0.22); playSynth('big'); haptic('medium');
+        flashScreen('#6aaa64', 0.22); playSynth('big'); haptic('medium');
     }
 
     function drawArrowsCelebration(L) {
@@ -2236,23 +2422,22 @@
         const sc = 0.6 + 0.4 * (1 + 2.2 * Math.pow(x - 1, 3) + 1.2 * Math.pow(x - 1, 2));  // easeOutBack
         const fade = Math.max(0, Math.min(1, (ARR_CLEAR_TIME - t) / 0.3));
         ctx.save(); ctx.globalAlpha = fade;
-        ctx.fillStyle = 'rgba(5,5,10,0.6)'; ctx.fillRect(0, cy - 60, width, 190);
+        ctx.fillStyle = 'rgba(250,248,239,0.92)'; ctx.fillRect(0, cy - 60, width, 190);
         ctx.translate(width / 2, cy); ctx.scale(sc, sc); ctx.textAlign = 'center';
-        ctx.shadowBlur = 18; ctx.shadowColor = '#00ff88'; ctx.fillStyle = '#e6f1ff';
-        ctx.font = 'bold 24px Orbitron, "Segoe UI", Roboto, Arial, sans-serif';
+        ctx.fillStyle = '#776e65';
+        ctx.font = 'bold 26px ' + UI_FONT;
         ctx.fillText('УРОВЕНЬ ПРОЙДЕН!', 0, -14);
         // Звёзды выскакивают по одной
         for (let i = 0; i < 3; i++) {
             const st = t - 0.25 - i * 0.18;
             if (st < 0) continue;
             const k = Math.min(1, st / 0.2);
-            ctx.fillStyle = i < c.stars ? '#ffcc00' : 'rgba(255,255,255,0.18)';
-            ctx.shadowColor = '#ffcc00'; ctx.shadowBlur = i < c.stars ? 14 : 0;
+            ctx.fillStyle = i < c.stars ? '#edc22e' : '#e0d6ca';
             ctx.font = `bold ${Math.round(34 * (1.5 - 0.5 * k))}px Arial, sans-serif`;
             ctx.fillText('★', (i - 1) * 44, 30);
         }
-        ctx.shadowBlur = 0; ctx.fillStyle = '#ffcc00';
-        ctx.font = 'bold 16px Rajdhani, "Segoe UI", Roboto, Arial, sans-serif';
+        ctx.fillStyle = '#8f7a66';
+        ctx.font = 'bold 16px ' + UI_FONT;
         c.lines.forEach((ln, i) => { if (t > 0.5 + i * 0.12) ctx.fillText(ln, 0, 62 + i * 19); });
         ctx.restore();
     }
@@ -2263,9 +2448,12 @@
         ctx.clearRect(0, 0, width, height); drawBackground(dt);
         const L = arrLayout();
 
-        ctx.fillStyle = 'rgba(10,16,32,0.55)'; ctx.strokeStyle = 'rgba(0,255,136,0.18)'; ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.roundRect(L.ox - 8, L.oy - 8, L.cell * arr.cols + 16, L.cell * arr.rows + 16, 14); ctx.fill(); ctx.stroke();
-        ctx.fillStyle = 'rgba(255,255,255,0.08)';
+        // Поле — белая карточка с мягкой тенью
+        ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#efe7dc'; ctx.lineWidth = 1.5;
+        ctx.save(); ctx.shadowColor = 'rgba(119,110,101,0.14)'; ctx.shadowBlur = 24; ctx.shadowOffsetY = 6;
+        ctx.beginPath(); ctx.roundRect(L.ox - 10, L.oy - 10, L.cell * arr.cols + 20, L.cell * arr.rows + 20, 24); ctx.fill();
+        ctx.restore(); ctx.stroke();
+        ctx.fillStyle = 'rgba(119,110,101,0.22)';
         for (let r = 0; r < arr.rows; r++) for (let c = 0; c < arr.cols; c++) {
             ctx.beginPath(); ctx.arc(L.ox + (c + 0.5) * L.cell, L.oy + (r + 0.5) * L.cell, 1.6, 0, Math.PI * 2); ctx.fill();
         }
@@ -2288,7 +2476,7 @@
             // Золотая искрит, пока лежит
             if (sn.gold && sn.state === 'idle' && sn.appear >= 1 && Math.random() < dt * 5 && sn.cells.length > 1) {
                 const [gx, gy] = snakePoint(sn, Math.random() * (sn.cells.length - 1), L);
-                particles.push({ x: gx, y: gy, vx: 0, vy: -35, life: 0.7, color: '#ffd700', size: 2, g: 0 });
+                particles.push({ x: gx, y: gy, vx: 0, vy: -35, life: 0.7, color: '#d9a400', size: 2, g: 0 });
             }
             const a = sn.appear;
             const sc = a <= 0 ? 0 : 1 + 2.2 * Math.pow(a - 1, 3) + 1.2 * Math.pow(a - 1, 2);  // easeOutBack
@@ -2301,8 +2489,8 @@
         if (arr.banner > 0) {
             arr.banner -= dt;
             ctx.globalAlpha = Math.max(0, Math.min(1, arr.banner * 2.5));
-            ctx.fillStyle = '#e6f1ff'; ctx.shadowBlur = 16; ctx.shadowColor = '#00ff88';
-            ctx.font = 'bold 26px Orbitron, "Segoe UI", Roboto, Arial, sans-serif'; ctx.textAlign = 'center';
+            ctx.fillStyle = '#776e65';
+            ctx.font = 'bold 26px ' + UI_FONT; ctx.textAlign = 'center';
             ctx.fillText(`УРОВЕНЬ ${arr.level}`, width / 2, L.oy - 22);
             ctx.shadowBlur = 0; ctx.globalAlpha = 1;
         }
@@ -2311,10 +2499,10 @@
             arr.hintT -= dt;
             const parts = arr.hint.split(' — ');
             ctx.save(); ctx.globalAlpha = Math.max(0, Math.min(1, arr.hintT * 2));
-            ctx.fillStyle = 'rgba(5,5,10,0.78)';
+            ctx.fillStyle = 'rgba(143,122,102,0.95)';
             ctx.beginPath(); ctx.roundRect(14, L.oy + 6, width - 28, 22 + parts.length * 18, 10); ctx.fill();
-            ctx.fillStyle = '#ffcc00'; ctx.textAlign = 'center';
-            ctx.font = 'bold 15px Rajdhani, "Segoe UI", Roboto, Arial, sans-serif';
+            ctx.fillStyle = '#ffffff'; ctx.textAlign = 'center';
+            ctx.font = 'bold 15px ' + UI_FONT;
             parts.forEach((ln, i) => ctx.fillText(i ? ln : ln, width / 2, L.oy + 26 + i * 18));
             ctx.restore();
         }
