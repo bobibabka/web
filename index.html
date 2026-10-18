@@ -113,70 +113,10 @@
         .shake { transform: translate(6px, 6px) rotate(1deg); }
         .shake2 { transform: translate(-6px, -6px) rotate(-1deg); }
 
-        /* Сетка 2048: плитки — абсолютные слои, двигаются через transform.
-           Так они плавно СКОЛЬЗЯТ к краю, а не телепортируются (раньше
-           доска перерисовывалась целиком на каждом ходу). */
-        #grid-2048 {
-            display: none; position: absolute; top: 48%; left: 50%;
-            transform: translate(-50%, -50%); z-index: 4;
-            width: 88vw; max-width: 370px; height: 88vw; max-height: 370px;
-            border-radius: 22px;
-        }
-        #grid-2048.glass-panel { background: var(--board); border: none;
-                                 box-shadow: 0 6px 0 var(--board-dark), var(--shadow); }
-        .cell-bg { position: absolute; border-radius: 14px; background: rgba(238, 228, 218, 0.38); }
-        .tile {
-            position: absolute; left: 0; top: 0; border-radius: 14px;
-            color: var(--ink); will-change: transform;
-            transition: transform 0.12s cubic-bezier(.2,.7,.3,1);
-        }
-        .tile-inner { width: 100%; height: 100%; border-radius: 14px; display: flex; flex-direction: column;
-                      align-items: center; justify-content: center; box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.08); }
-        .tile-icon { width: 30px; height: 30px; margin-bottom: 1px; }
-        .tile-name { font-size: 13px; font-weight: 900; }
-        .tile-val { font-size: 12px; font-weight: 800; opacity: 0.85; }
-        .tile-pop .tile-inner { animation: tilePop 0.2s cubic-bezier(.2,.9,.3,1.3) both; }
-        .tile-merged .tile-inner { animation: tileMerge 0.22s ease-out; }
-        @keyframes tilePop { from { transform: scale(0.2); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-        @keyframes tileMerge { 0% { transform: scale(1); } 40% { transform: scale(1.2); } 100% { transform: scale(1); } }
-        /* Крупное слияние (256+) — пульс сильнее и дольше */
-        .tile-merged-big .tile-inner { animation: tileMergeBig 0.42s cubic-bezier(.2,.9,.3,1.2); }
-        @keyframes tileMergeBig {
-            0% { transform: scale(1); }
-            35% { transform: scale(1.3) rotate(-4deg); box-shadow: 0 0 0 5px rgba(237, 194, 46, 0.55); }
-            65% { transform: scale(0.95) rotate(2deg); }
-            100% { transform: scale(1); }
-        }
-        /* Плитку разбили молотком */
-        .tile-smash .tile-inner { animation: tileSmash 0.22s ease-in forwards; }
-        @keyframes tileSmash { to { transform: scale(0.1) rotate(25deg); opacity: 0; } }
-        /* Режим молотка: плитки покачиваются, тап по плитке — разбить */
-        #grid-2048.hammer-mode { box-shadow: 0 0 0 4px #f2b179, 0 6px 0 var(--board-dark); }
-        #grid-2048.hammer-mode .tile .tile-inner { animation: hammerWobble 0.6s ease-in-out infinite; cursor: crosshair; }
-        @keyframes hammerWobble { 0%,100% { transform: rotate(0); } 25% { transform: rotate(-3deg); } 75% { transform: rotate(3deg); } }
-
-        /* Инструменты 2048 в HUD: молоток и отмена хода */
-        #hud-2048-tools { display: none; gap: 8px; align-items: center; }
-        .tool-btn {
-            position: relative; min-width: 56px; height: 46px; padding: 0 10px; border-radius: 16px;
-            background: var(--btn); border: none; color: #fff; box-shadow: 0 4px 0 var(--btn-dark);
-            font-family: inherit; font-weight: 900; font-size: 16px; cursor: pointer;
-            display: flex; align-items: center; justify-content: center; gap: 4px; overflow: hidden;
-            transition: transform 0.08s, box-shadow 0.08s;
-        }
-        .tool-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--btn-dark); }
-        .tool-btn:disabled { opacity: 0.45; cursor: default; }
-        .tool-btn.armed { background: var(--accent); box-shadow: 0 4px 0 #c94a2e; }
-        .tool-btn .tool-prog { position: absolute; left: 0; bottom: 0; height: 4px; background: var(--gold); width: 0%; transition: width .25s; }
-        .tool-btn.gain { animation: toolGain 0.5s ease-out; }
-        @keyframes toolGain { 0% { transform: scale(1); } 40% { transform: scale(1.22); } 100% { transform: scale(1); } }
-
         /* Вспышка всего экрана (удар, крупное слияние, рекорд) */
         #fx-flash { position: fixed; inset: 0; pointer-events: none; z-index: 30; opacity: 0; }
         #fx-flash.go { animation: fxFlash 0.35s ease-out forwards; }
         @keyframes fxFlash { 0% { opacity: var(--fa, 0.45); } 100% { opacity: 0; } }
-        /* В 2048 холст лежит ПОВЕРХ сетки и рисует только частицы/надписи */
-        canvas.fx-overlay { z-index: 6; pointer-events: none; }
 
         /* Экран итогов */
         .go-medal { width: 76px; height: 76px; margin: 0 auto 10px; border-radius: 50%;
@@ -225,6 +165,63 @@
         }
         .log-line { margin-bottom: 3px; }
         .log-sys { color: var(--ink-soft); } .log-ok { color: var(--green); }
+
+        /* ===== Кубики (blocks): свой синий экран поверх всего, классы с префиксом bk- ===== */
+        #blocks-root {
+            position: fixed; inset: 0; z-index: 9; display: flex;
+            background: linear-gradient(180deg, #5a7cea 0%, #2e43a6 100%); color: #fff; font-family: var(--font);
+            padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+            padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px);
+            user-select: none; touch-action: none; overscroll-behavior: none;
+        }
+        #blocks-root[hidden], #blocks-root [hidden] { display: none !important; }
+        .bk-stage { position: relative; flex: 1; min-width: 0; height: 100%; touch-action: none; }
+        #bk-cv { display: block; position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
+        .bk-hud { position: absolute; left: 0; right: 0; top: 0; margin: 0 auto; max-width: 560px; padding-top: 10px;
+                  display: flex; flex-direction: column; align-items: center; gap: 4px; pointer-events: none; }
+        .bk-row { width: 100%; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; }
+        .bk-best { justify-self: start; display: flex; align-items: center; gap: 6px; color: #ffd23f; font-weight: 900;
+                   font-size: 20px; font-variant-numeric: tabular-nums; text-shadow: 0 2px 0 rgba(0,0,0,.28); }
+        .bk-crown { width: 28px; height: 22px; filter: drop-shadow(0 2px 0 rgba(0,0,0,.28)); }
+        .bk-crown.bk-pulse { animation: bkCrown .55s ease-out; }
+        @keyframes bkCrown { 40% { transform: scale(1.3) rotate(-10deg); } 100% { transform: none; } }
+        .bk-score { font-weight: 900; font-size: clamp(36px, 10.5vw, 54px); line-height: 1; color: #fff;
+                    font-variant-numeric: tabular-nums; text-shadow: 0 3px 0 rgba(15,22,70,.55); }
+        .bk-btns { justify-self: end; display: flex; gap: 8px; }
+        .bk-icon { pointer-events: auto; width: 42px; height: 42px; border-radius: 12px; border: 0; padding: 0;
+                   background: rgba(18,26,70,.45); color: #fff; display: grid; place-items: center; cursor: pointer;
+                   box-shadow: inset 0 -3px 0 rgba(0,0,0,.25); }
+        .bk-icon:active { transform: translateY(1px); }
+        .bk-icon:focus-visible { outline: 3px solid #ffd23f; outline-offset: 2px; }
+        .bk-icon svg { width: 22px; height: 22px; }
+        .bk-lvl { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 800;
+                  letter-spacing: .09em; text-transform: uppercase; color: #c8d3ff; }
+        .bk-bar { width: 76px; height: 6px; border-radius: 3px; background: rgba(0,0,0,.28); overflow: hidden; }
+        .bk-bar i { display: block; height: 100%; width: 0; background: #ffd23f; border-radius: 3px; transition: width .45s ease-out; }
+        .bk-toast { position: absolute; left: 50%; top: 100px; transform: translate(-50%, -6px); opacity: 0;
+                    transition: opacity .25s, transform .25s; pointer-events: none; z-index: 3;
+                    background: rgba(14,20,58,.86); color: #fff; padding: 9px 16px; border-radius: 999px;
+                    font-weight: 800; font-size: 14px; text-align: center; width: max-content; max-width: calc(100% - 8px);
+                    box-shadow: 0 6px 18px rgba(0,0,0,.25); }
+        .bk-toast.bk-show { opacity: 1; transform: translate(-50%, 0); }
+        .bk-modal { position: fixed; inset: 0; z-index: 5; display: grid; place-items: center; padding: 16px;
+                    background: rgba(10,14,40,.62); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
+        .bk-card { width: min(340px, 100%); background: #1c2556; border: 2px solid #2d3b80; border-radius: 22px;
+                   padding: 24px 20px 20px; text-align: center; color: #fff; box-shadow: 0 14px 40px rgba(0,0,0,.35);
+                   animation: bkPop .38s cubic-bezier(.2,1.4,.4,1); }
+        @keyframes bkPop { from { transform: scale(.82); opacity: 0; } to { transform: none; opacity: 1; } }
+        .bk-card h2 { margin: 0 0 8px; font-size: 26px; font-weight: 900; color: #fff; }
+        .bk-card p { margin: 0 0 4px; color: #c8d3ff; font-weight: 700; font-size: 15px; line-height: 1.4; }
+        .bk-actions { display: flex; gap: 10px; margin-top: 16px; }
+        .bk-btn { flex: 1; border: 0; border-radius: 14px; padding: 14px 8px; cursor: pointer; font: 900 16px var(--font);
+                  color: #fff; background: #4ec44b; box-shadow: inset 0 -5px 0 #2e8c2c; }
+        .bk-btn:active { transform: translateY(2px); box-shadow: inset 0 -3px 0 #2e8c2c; }
+        .bk-btn.bk-alt { background: #3a4785; box-shadow: inset 0 -5px 0 #27306a; }
+        .bk-btn:focus-visible { outline: 3px solid #ffd23f; outline-offset: 2px; }
+        @media (prefers-reduced-motion: reduce) {
+            .bk-card, .bk-crown.bk-pulse { animation: none; }
+            .bk-toast, .bk-bar i { transition: none; }
+        }
     </style>
 </head>
 <body>
@@ -252,11 +249,14 @@
                     <div class="gc-best" id="best-arrows"></div></div>
                 <div class="gc-go">›</div>
             </button>
-            <button class="game-card" onclick="startGame('2048')">
-                <div class="gc-icon"><svg viewBox="0 0 60 60"><rect width="60" height="60" fill="#edc22e"/>
-                    <text x="30" y="37" text-anchor="middle" font-family="Nunito, Arial, sans-serif" font-weight="900" font-size="17" fill="#fff">2048</text></svg></div>
-                <div class="gc-text"><div class="gc-title">2048</div><div class="gc-sub">Собирай вещи подороже</div>
-                    <div class="gc-best" id="best-2048"></div></div>
+            <button class="game-card" onclick="startGame('blocks')">
+                <div class="gc-icon"><svg viewBox="0 0 60 60"><rect width="60" height="60" fill="#4a68d8"/>
+                    <g stroke="rgba(0,0,0,.28)" stroke-width="1.5">
+                    <rect x="12" y="12" width="17" height="17" rx="3" fill="#ffcf24"/><rect x="31" y="12" width="17" height="17" rx="3" fill="#f0453c"/>
+                    <rect x="12" y="31" width="17" height="17" rx="3" fill="#57cf3d"/><rect x="31" y="31" width="17" height="17" rx="3" fill="#2ec4f2" opacity=".4"/></g>
+                    <path d="M15 15.5h11M34 15.5h11M15 34.5h11" stroke="rgba(255,255,255,.6)" stroke-width="2.5" stroke-linecap="round"/></svg></div>
+                <div class="gc-text"><div class="gc-title">Кубики</div><div class="gc-sub">Собирай ряды и столбцы</div>
+                    <div class="gc-best" id="best-blocks"></div></div>
                 <div class="gc-go">›</div>
             </button>
             <button class="game-card" onclick="startGame('doodle')">
@@ -327,19 +327,38 @@
             <div class="hud-stat"><span class="hud-label">Очки</span><span class="hud-val" id="val-score">0</span></div>
             <div class="hud-stat" id="ui-time-box"><span class="hud-label">Уровень</span><span class="hud-val" id="val-time">120</span></div>
             <div class="hud-stat" id="ui-lives-box"><span class="hud-label">Жизни</span><span class="hud-val" id="val-lives">|||||</span></div>
-            <!-- Бонусы 2048: зарабатываются игрой (не покупаются) -->
-            <div id="hud-2048-tools">
-                <button id="btn-hammer" class="tool-btn" onclick="toggle2048Hammer()" title="Молоток: убрать одну плитку">🔨<span id="cnt-hammer">0</span><span class="tool-prog" id="prog-hammer"></span></button>
-                <button id="btn-undo" class="tool-btn" onclick="undo2048()" title="Отменить последний ход">↩️<span id="cnt-undo">0</span></button>
-            </div>
         </div>
         <canvas id="gameCanvas"></canvas>
-        <div id="grid-2048" class="glass-panel"></div>
         <div id="combo-toast"></div>
         <button id="btn-ingame-exit" class="btn-neon btn-exit" style="display:none; position:absolute; bottom:22px; left:50%; transform:translateX(-50%); width: 85%; max-width:340px; z-index:10;" onclick="gameOver()">Завершить игру</button>
     </div>
     <!-- Вспышка — вне game-container, чтобы тряска (transform) не загоняла её под экраны -->
     <div id="fx-flash"></div>
+
+    <!-- Кубики: свой экран поверх всего (показывается только во время партии) -->
+    <div id="blocks-root" hidden>
+        <div class="bk-stage" id="bk-stage">
+            <canvas id="bk-cv" aria-label="Поле 8 на 8 и три фигуры"></canvas>
+            <div class="bk-hud" id="bk-hud">
+                <div class="bk-row">
+                    <div class="bk-best" title="Рекорд">
+                        <svg id="bk-crown" class="bk-crown" viewBox="0 0 28 22" aria-hidden="true"><path d="M3 7l6 5 5-9 5 9 6-5-2.5 12.5h-17z" fill="currentColor" stroke="#a86b00" stroke-width="1.6" stroke-linejoin="round"/></svg>
+                        <span id="bk-best">0</span>
+                    </div>
+                    <div class="bk-score" id="bk-score">0</div>
+                    <div class="bk-btns">
+                        <button class="bk-icon" id="bk-sound" type="button" aria-label="Выключить звук"></button>
+                        <button class="bk-icon" id="bk-exit" type="button" aria-label="Завершить игру" title="Завершить игру">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4"/><path d="M5 4h12l-2.5 4 2.5 4H5" fill="currentColor"/></svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="bk-lvl"><span id="bk-lvl-text">Уровень 1</span><span class="bk-bar"><i id="bk-lvl-bar"></i></span></div>
+            </div>
+            <div class="bk-toast" id="bk-toast" role="status" aria-live="polite"></div>
+            <div class="bk-modal" id="bk-modal" hidden></div>
+        </div>
+    </div>
 
     <!-- Нижняя панель: баланс токенов + уровень игрока (XP). Видна в меню и
          профиле, прячется во время самой игры, чтобы не мешать. -->
@@ -389,7 +408,7 @@
         // Нет параметров (старая ссылка, тест вне Telegram) — запасные значения.
         div: {
             arrows: _num(_params.get('d_arrows'), 8),
-            '2048': _num(_params.get('d_2048'), 4),
+            blocks: _num(_params.get('d_blocks'), 50),
             doodle: _num(_params.get('d_doodle'), 6),
         },
         gcap: _num(_params.get('gcap'), 100),
@@ -455,7 +474,7 @@
     }
     // Личный рекорд на карточке каждой игры в меню
     function renderMenuBests() {
-        for (const g of ['arrows', '2048', 'doodle']) {
+        for (const g of ['arrows', 'blocks', 'doodle']) {
             const el = document.getElementById('best-' + g);
             if (!el) continue;
             const b = loadBest(g);
@@ -467,7 +486,6 @@
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     const container = document.getElementById('game-container');
-    const grid2048 = document.getElementById('grid-2048');
     
     let width, height;
     function resize() {
@@ -547,7 +565,6 @@
     let lastTime = 0, spawnTimer = 0, gameReq, timeInt, invulnerableTimer = 0;
     let bgOffset = 0, playerX = width / 2;
     let items = [], particles = [], floatTexts = [], bonuses = [];
-    let board2048 = [], lockedUsed2048 = false;
     let doodleY = 0, doodleVy = 0, doodleX = 0, doodlePlatforms = [], doodleHeight = 0, doodleBestY = 0, doodleTilt = 0;
     let doodleSquash = 1; // 1 = обычная форма, <1 = приплющен при отскоке
     let gameElapsed = 0; // секунды с начала текущего забега — общий множитель сложности
@@ -661,7 +678,7 @@
 
     // Загрузка
     const bootLogs = [
-        "<span class='log-sys'>•</span> Раскладываю плитки…",
+        "<span class='log-sys'>•</span> Раскладываю кубики…",
         "<span class='log-sys'>•</span> Расставляю платформы…",
         "<span class='log-sys'>•</span> Бужу змеек…",
         "<span class='log-ok'>✓</span> Готово!"
@@ -704,6 +721,18 @@
     // молча замораживает игру.
     function haptic(kind) {
         try { if (isTgEnv && tg.HapticFeedback) tg.HapticFeedback.impactOccurred(kind || 'light'); } catch (e) {}
+    }
+
+    // Кубики синие: красим шапку Telegram под них и запрещаем «смахнуть»
+    // игру вниз — иначе, протаскивая фигуру к низу экрана, можно свернуть окно.
+    function setBlocksChrome(on) {
+        if (!isTgEnv) return;
+        try { if (tg.setHeaderColor) tg.setHeaderColor(on ? '#5a7cea' : '#faf8ef'); } catch (e) {}
+        try { if (tg.setBackgroundColor) tg.setBackgroundColor(on ? '#2e43a6' : '#faf8ef'); } catch (e) {}
+        try {
+            if (on && tg.disableVerticalSwipes) tg.disableVerticalSwipes();
+            if (!on && tg.enableVerticalSwipes) tg.enableVerticalSwipes();
+        } catch (e) {}
     }
 
     function shakeScreen() {
@@ -775,9 +804,10 @@
 
     // --- Защитный потолок очков ---
     // Сервер считает всё выше GAME_MAX_SCORE накруткой (arrows 12000,
-    // 2048 40000, doodle 5000). Очень длинная честная игра не должна
+    // blocks 500000, doodle 5000). Очень длинная честная игра не должна
     // выглядеть как читерство — поэтому держим счёт чуть ниже потолка.
-    const SCORE_SAFE_MAX = { arrows: 11400, '2048': 38000, doodle: 4750 };
+    // У Кубиков счёт большой из-за комбо (длинная партия — сотни тысяч).
+    const SCORE_SAFE_MAX = { arrows: 11400, blocks: 480000, doodle: 4750 };
     function clampScore() {
         const cap = SCORE_SAFE_MAX[currentGame];
         if (cap && score > cap) score = cap;
@@ -819,11 +849,9 @@
         document.getElementById('hud').style.display = 'flex';
         
         isPlaying = true; score = 0; bonusCoins = 0; items = []; bonuses = []; particles = []; floatTexts = [];
-        lastTime = performance.now(); gameElapsed = 0; lockedUsed2048 = false;
+        lastTime = performance.now(); gameElapsed = 0;
         combo = 0; comboBest = 0; doodleJetpackUntil = 0; doodleBootsUntil = 0; doodlePropUntil = 0;
         bestScoreRun = loadBest(type); recordCelebrated = false;
-        canvas.classList.remove('fx-overlay');
-        document.getElementById('hud-2048-tools').style.display = 'none';
 
         if (type === 'arrows') {
             startArrows();
@@ -843,18 +871,22 @@
             document.getElementById('ui-time-box').style.display = 'none';
             document.getElementById('ui-lives-box').style.display = 'none';
             document.getElementById('btn-ingame-exit').style.display = 'block';
-            canvas.style.display = 'block'; grid2048.style.display = 'none';
+            canvas.style.display = 'block';
             gameReq = requestAnimationFrame(loopDoodleSafe);
         }
-        else if (type === '2048') {
-            document.getElementById('ui-time-box').style.display = 'none';
-            document.getElementById('ui-lives-box').style.display = 'none';
-            document.getElementById('btn-ingame-exit').style.display = 'block';
-            // Холст поверх сетки — только для частиц и всплывающих надписей
-            canvas.style.display = 'block'; canvas.classList.add('fx-overlay');
-            grid2048.style.display = 'block';
-            init2048();
-            gameReq = requestAnimationFrame(loop2048FxSafe);
+        else if (type === 'blocks') {
+            // У Кубиков своё табло, свои кнопки и свой холст на весь экран
+            document.getElementById('hud').style.display = 'none';
+            document.getElementById('btn-ingame-exit').style.display = 'none';
+            canvas.style.display = 'none';
+            recordCelebrated = true;   // «Новый рекорд!» Кубики показывают сами
+            setBlocksChrome(true);
+            Blocks.start({
+                best: bestScoreRun,
+                onScore: function (s) { score = s; updateHud(); },
+                onOver: function (s) { score = s; gameOver(); },
+                haptic: haptic,
+            });
         }
 
         updateHud();
@@ -884,9 +916,7 @@
         isPlaying = false;
         cancelAnimationFrame(gameReq); clearInterval(timeInt);
         clampScore();
-        hammerMode2048 = false; grid2048.classList.remove('hammer-mode');
-        document.getElementById('hud-2048-tools').style.display = 'none';
-        canvas.classList.remove('fx-overlay');
+        if (currentGame === 'blocks') { Blocks.stop(); setBlocksChrome(false); }
         // Рекорд: показываем на экране итогов и запоминаем на устройстве
         const recEl = document.getElementById('final-record');
         if (score > bestScoreRun) {
@@ -896,7 +926,7 @@
         } else if (bestScoreRun > 0) {
             recEl.innerText = `Твой рекорд: ${bestScoreRun}`; recEl.style.display = 'block';
         } else recEl.style.display = 'none';
-        canvas.style.display = 'none'; grid2048.style.display = 'none';
+        canvas.style.display = 'none';
         document.getElementById('hud').style.display = 'none';
         document.getElementById('btn-ingame-exit').style.display = 'none';
         document.getElementById('screen-gameover').classList.add('active');
@@ -995,21 +1025,6 @@
         }
         ctx.globalAlpha = 1.0;
     }
-
-    // --- 2048 ---
-    const tMap = {
-        2:   {n:'Носки', c:'#eee4da', tc:'#776e65', fx:'#a39383', svg:'<path d="M6 3v12c0 3 3 6 6 6s6-3 6-6V9h-4V3H6z" fill="currentColor"/>'},
-        4:   {n:'Кепка', c:'#ede0c8', tc:'#776e65', fx:'#a39383', svg:'<path d="M4 14c0-4 4-8 8-8s8 4 8 8v2H4v-2zm-2 2h20v2H2z" fill="currentColor"/>'},
-        8:   {n:'Кроссы', c:'#f2b179', tc:'#f9f6f2', fx:'#e8955a', svg:'<path d="M3 13l4-7h5l2 3h4c2 0 3 2 3 4v3H3v-3z" fill="currentColor"/>'},
-        16:  {n:'Худи',  c:'#f59563', tc:'#f9f6f2', fx:'#ec7d43', svg:'<path d="M8 4l4 3 4-3 5 3-2 13H5L3 7l5-3z" fill="currentColor"/>'},
-        32:  {n:'Часы',  c:'#f67c5f', tc:'#f9f6f2', fx:'#ee6847', svg:'<circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 8v4l3 2" stroke="currentColor" stroke-width="2"/>'},
-        64:  {n:'Планшет',c:'#f65e3b', tc:'#f9f6f2', fx:'#e9502c', svg:'<rect x="5" y="3" width="14" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="18" r="1" fill="currentColor"/>'},
-        128: {n:'Смарт', c:'#edcf72', tc:'#f9f6f2', fx:'#d9b23a', svg:'<rect x="6" y="2" width="12" height="20" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>'},
-        256: {n:'Ноут',  c:'#edcc61', tc:'#f9f6f2', fx:'#d4ab2b', svg:'<rect x="5" y="5" width="14" height="10" rx="1" fill="none" stroke="currentColor" stroke-width="2"/><path d="M2 18h20v1H2z" fill="currentColor"/>'},
-        512: {n:'Мопед', c:'#edc850', tc:'#f9f6f2', fx:'#cfa21f', svg:'<circle cx="6" cy="16" r="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="16" r="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6 16l4-7h4l4 7" fill="none" stroke="currentColor" stroke-width="2"/>'},
-        1024:{n:'Мото',  c:'#edc53f', tc:'#f9f6f2', fx:'#c99a14', svg:'<path d="M4 15l4-5h6l3 2h3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="6" cy="16" r="3" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="16" r="3" stroke="currentColor" stroke-width="2"/>'},
-        2048:{n:'Спорткар', c:'#edc22e', tc:'#f9f6f2', fx:'#c2900a', svg:'<path d="M3 14l3-6h12l3 6v3H3v-3z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="7" cy="17" r="2" fill="currentColor"/><circle cx="17" cy="17" r="2" fill="currentColor"/>'}
-    };
 
     // --- ПРАЙС-ПРЫГУН (Doodle Jump) ---
     // На какую высоту (px) поднимется центр кубика при стартовой скорости vy.
@@ -1724,355 +1739,6 @@
     }
     const loopDoodleSafe = safeFrame(loopDoodle);
 
-    // ===== 2048 =====
-    // Каждая плитка — объект {id, v, r, c} со своим DOM-элементом. Ход
-    // считается по плиткам, а не по массиву чисел: так известно, КАКАЯ
-    // плитка куда поехала, и её можно плавно довезти анимацией.
-    let tiles2048 = [], tileSeq = 0, moving2048 = false;
-    const SLIDE_MS = 120;
-    // Очки. Раньше слияние давало номинал×15 — даже простой бот за 30 секунд
-    // набирал ~50 тыс. при серверном потолке 40 тыс. («накрутка»). Теперь
-    // номинал×1.5 + маленький бонус за комбо: партия до плитки 1024 — это
-    // примерно 15–20 тыс., до 2048 — около 35 тыс.
-    const T2048_POINTS_PER_VALUE = 1.5;
-    const T2048_COMBO_POINTS = 3;
-    // Шанс «четвёрки» растёт с очками. Делитель пересчитан под новый масштаб
-    // очков, чтобы сложность по ходу партии росла ровно как раньше.
-    const T2048_FOUR_RAMP = 40000 * T2048_POINTS_PER_VALUE / 15;
-    const T2048_BIG_TILE = 256;            // от этого номинала — вспышка и сильный пульс
-    const T2048_HAMMER_EVERY = 5;          // столько ходов подряд со слиянием → +1 молоток
-    const T2048_HAMMER_MAX = 3;            // больше трёх молотков не копится
-    const T2048_UNDO_TILES = [512, 1024];  // впервые собрал такую плитку → +1 отмена хода
-    let hammers2048 = 0, hammerProgress2048 = 0, undos2048 = 0, history2048 = null;
-    let hammerMode2048 = false, undoGranted2048 = {}, maxTile2048 = 0;
-    let lastTouchTap2048 = 0, gameOverTimer2048 = null;
-
-    function layout2048() {
-        const size = grid2048.clientWidth || Math.min(window.innerWidth * 0.88, 370);
-        const pad = 10, gap = 10;
-        const cell = (size - pad * 2 - gap * 3) / 4;
-        return { cell, pad, gap, pos: (i) => pad + i * (cell + gap) };
-    }
-
-    // Центр клетки в координатах экрана (там же рисует холст с частицами)
-    function cellCenter2048(r, c) {
-        const rect = grid2048.getBoundingClientRect(), L = layout2048();
-        return { x: rect.left + L.pos(c) + L.cell / 2, y: rect.top + L.pos(r) + L.cell / 2 };
-    }
-    // Какая клетка под точкой экрана (или null, если мимо)
-    function cellFromPoint2048(clientX, clientY) {
-        const rect = grid2048.getBoundingClientRect(), L = layout2048();
-        const x = clientX - rect.left - L.pad + L.gap / 2, y = clientY - rect.top - L.pad + L.gap / 2;
-        const c = Math.floor(x / (L.cell + L.gap)), r = Math.floor(y / (L.cell + L.gap));
-        if (r < 0 || r > 3 || c < 0 || c > 3) return null;
-        return { r, c };
-    }
-
-    function init2048() {
-        tiles2048 = []; tileSeq = 0; moving2048 = false;
-        hammers2048 = 0; hammerProgress2048 = 0; undos2048 = 0; history2048 = null;
-        hammerMode2048 = false; undoGranted2048 = {}; maxTile2048 = 0;
-        clearTimeout(gameOverTimer2048); gameOverTimer2048 = null;
-        grid2048.classList.remove('hammer-mode');
-        grid2048.innerHTML = '';
-        const L = layout2048();
-        for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) {
-            const bg = document.createElement('div'); bg.className = 'cell-bg';
-            bg.style.cssText = `left:${L.pos(c)}px; top:${L.pos(r)}px; width:${L.cell}px; height:${L.cell}px;`;
-            grid2048.appendChild(bg);
-        }
-        add2048(); add2048();
-        board2048 = boardValues();
-        document.getElementById('hud-2048-tools').style.display = 'flex';
-        render2048Tools();
-
-        let startX = 0, startY = 0;
-        grid2048.ontouchstart = e => { if (e.touches[0]) { startX = e.touches[0].clientX; startY = e.touches[0].clientY; } };
-        grid2048.ontouchend = e => {
-            if (!isPlaying || currentGame !== '2048') return;
-            const t = e.changedTouches && e.changedTouches[0]; if (!t) return;
-            let dx = t.clientX - startX, dy = t.clientY - startY;
-            // Короткий тап (без свайпа) — выбор плитки для молотка
-            if (Math.abs(dx) < 12 && Math.abs(dy) < 12) { lastTouchTap2048 = Date.now(); tap2048(t.clientX, t.clientY); return; }
-            if (Math.abs(dx) > 30 && Math.abs(dx) > Math.abs(dy)) move2048(dx > 0 ? 'R' : 'L');
-            else if (Math.abs(dy) > 30 && Math.abs(dy) > Math.abs(dx)) move2048(dy > 0 ? 'D' : 'U');
-        };
-        // Мышь на компьютере. На телефоне после touchend браузер присылает ещё
-        // и click — его пропускаем, тап уже обработан.
-        grid2048.onclick = e => {
-            if (Date.now() - lastTouchTap2048 < 700) return;
-            tap2048(e.clientX, e.clientY);
-        };
-        window.onkeydown = e => {
-            if (!isPlaying || currentGame !== '2048') return;
-            if (e.key === 'Escape' && hammerMode2048) { toggle2048Hammer(); return; }
-            const k = { ArrowLeft: 'L', ArrowRight: 'R', ArrowUp: 'U', ArrowDown: 'D' }[e.key];
-            if (k) move2048(k);
-        };
-    }
-
-    function tileAt(r, c) { return tiles2048.find(t => t.r === r && t.c === c && !t.dead); }
-    function boardValues() {
-        const b = Array(16).fill(0);
-        tiles2048.forEach(t => { if (!t.dead) b[t.r * 4 + t.c] = t.v; });
-        return b;
-    }
-
-    function renderTile(t, cls) {
-        const L = layout2048();
-        if (!t.el) {
-            t.el = document.createElement('div'); t.el.className = 'tile';
-            t.el.style.width = L.cell + 'px'; t.el.style.height = L.cell + 'px';
-            t.el.style.transition = 'none';  // новая плитка встаёт сразу, без «подъезда» из угла
-            grid2048.appendChild(t.el);
-        }
-        const conf = tMap[t.v] || { n: 'MAX', c: '#3c3a32', tc: '#f9f6f2', svg: '' };
-        t.el.innerHTML = `<div class="tile-inner" style="background:${conf.c}; color:${conf.tc};">
-            <svg class="tile-icon" style="color:${conf.tc}" viewBox="0 0 24 24">${conf.svg}</svg>
-            <div class="tile-name" style="color:${conf.tc}">${conf.n}</div>
-            <div class="tile-val" style="color:${conf.tc}">${t.v}</div></div>`;
-        t.el.style.transform = `translate(${L.pos(t.c)}px, ${L.pos(t.r)}px)`;
-        if (cls) { t.el.classList.remove('tile-pop', 'tile-merged', 'tile-merged-big'); void t.el.offsetWidth; t.el.classList.add(cls); }
-        t.el.style.zIndex = (cls === 'tile-merged' || cls === 'tile-merged-big') ? 3 : 2;
-        requestAnimationFrame(() => { if (t.el) t.el.style.transition = ''; });
-    }
-
-    function add2048() {
-        const empty = [];
-        for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) if (!tileAt(r, c)) empty.push([r, c]);
-        if (!empty.length) return;
-        // Со временем шанс невыгодной «четвёрки» растёт — под конец забега
-        // сложнее держать доску расчищенной.
-        const fourChance = Math.min(0.1 + score / T2048_FOUR_RAMP, 0.35);
-        const [r, c] = empty[Math.floor(Math.random() * empty.length)];
-        const t = { id: ++tileSeq, v: Math.random() > fourChance ? 2 : 4, r, c };
-        tiles2048.push(t);
-        renderTile(t, 'tile-pop');
-    }
-
-    // Кнопки бонусов в HUD: число зарядов, прогресс до следующего молотка
-    function render2048Tools(gained) {
-        const bh = document.getElementById('btn-hammer'), bu = document.getElementById('btn-undo');
-        if (!bh || !bu) return;
-        document.getElementById('cnt-hammer').innerText = hammers2048;
-        document.getElementById('cnt-undo').innerText = undos2048;
-        bh.disabled = hammers2048 <= 0; bu.disabled = undos2048 <= 0;
-        bh.classList.toggle('armed', hammerMode2048);
-        const prog = hammers2048 >= T2048_HAMMER_MAX ? 100 : Math.round(hammerProgress2048 / T2048_HAMMER_EVERY * 100);
-        document.getElementById('prog-hammer').style.width = Math.max(0, Math.min(100, prog)) + '%';
-        const el = gained === 'hammer' ? bh : gained === 'undo' ? bu : null;
-        if (el) { el.classList.remove('gain'); void el.offsetWidth; el.classList.add('gain'); }
-    }
-
-    function toggle2048Hammer() {
-        if (!isPlaying || currentGame !== '2048' || moving2048) return;
-        if (!hammerMode2048 && hammers2048 <= 0) return;
-        hammerMode2048 = !hammerMode2048;
-        grid2048.classList.toggle('hammer-mode', hammerMode2048);
-        if (hammerMode2048) {
-            const rect = grid2048.getBoundingClientRect();
-            createFloatingText(rect.left + rect.width / 2, rect.top - 8, '🔨 Тапни по плитке', '#d9a400');
-        }
-        render2048Tools();
-    }
-
-    function tap2048(clientX, clientY) {
-        if (!hammerMode2048) return;
-        const cell = cellFromPoint2048(clientX, clientY);
-        if (cell) use2048Hammer(cell.r, cell.c);
-    }
-
-    // Молоток: разбить одну выбранную плитку. Возвращает true, если разбили.
-    function use2048Hammer(r, c) {
-        if (!isPlaying || currentGame !== '2048' || moving2048) return false;
-        if (hammers2048 <= 0) { hammerMode2048 = false; grid2048.classList.remove('hammer-mode'); render2048Tools(); return false; }
-        if (!(r >= 0 && r <= 3 && c >= 0 && c <= 3)) return false;
-        const t = tileAt(r, c), ctr = cellCenter2048(r, c);
-        if (!t) { createFloatingText(ctr.x, ctr.y, 'Пусто', '#9b9188'); return false; }
-        if (tiles2048.filter(q => !q.dead).length <= 1) { createFloatingText(ctr.x, ctr.y, 'Последняя!', '#9b9188'); return false; }
-        hammers2048--; hammerMode2048 = false; grid2048.classList.remove('hammer-mode');
-        tiles2048 = tiles2048.filter(q => q !== t);
-        const el = t.el; t.el = null; t.dead = true;
-        if (el) { el.classList.add('tile-smash'); setTimeout(() => el.remove(), 240); }
-        const conf = tMap[t.v] || { fx: '#776e65' };
-        createParticle(ctr.x, ctr.y, conf.fx, 18, 760, 3.2);
-        createParticle(ctr.x, ctr.y, '#d9a400', 8, 520, 2);
-        playSynth('stomp'); shakeScreen();
-        history2048 = null;  // удар молотком не отменяется — иначе отмена «вернула бы» плитку
-        board2048 = boardValues();
-        clearTimeout(gameOverTimer2048); gameOverTimer2048 = null;
-        render2048Tools();
-        return true;
-    }
-
-    function snapshot2048() {
-        return { tiles: tiles2048.filter(t => !t.dead).map(t => ({ v: t.v, r: t.r, c: t.c })), score, combo };
-    }
-
-    // Отмена последнего хода (заряды даются за плитки 512 и 1024)
-    function undo2048() {
-        if (!isPlaying || currentGame !== '2048' || moving2048) return false;
-        if (undos2048 <= 0) return false;
-        const rect = grid2048.getBoundingClientRect();
-        if (!history2048) { createFloatingText(rect.left + rect.width / 2, rect.top - 8, 'Нечего отменять', '#9b9188'); return false; }
-        const snap = history2048; history2048 = null; undos2048--;
-        if (hammerMode2048) { hammerMode2048 = false; grid2048.classList.remove('hammer-mode'); }
-        tiles2048.forEach(t => { if (t.el) t.el.remove(); t.el = null; });
-        tiles2048 = [];
-        snap.tiles.forEach(o => { const t = { id: ++tileSeq, v: o.v, r: o.r, c: o.c }; tiles2048.push(t); renderTile(t, 'tile-pop'); });
-        score = snap.score; combo = snap.combo;
-        board2048 = boardValues();
-        clearTimeout(gameOverTimer2048); gameOverTimer2048 = null;
-        playSynth('jump');
-        createFloatingText(rect.left + rect.width / 2, rect.top - 8, '↩️ Ход отменён', '#4a90d9');
-        updateHud(); render2048Tools();
-        return true;
-    }
-
-    function move2048(dir) {
-        if (moving2048) return; // пока плитки едут, следующий свайп не принимаем
-        if (!isPlaying || currentGame !== '2048') return;
-        const vec = { L: [0, -1], R: [0, 1], U: [-1, 0], D: [1, 0] }[dir];
-        if (!vec) return;
-        const snap = snapshot2048();   // для «отмены хода»
-        const order = [0, 1, 2, 3];
-        const rows = vec[0] === 1 ? [...order].reverse() : order;
-        const cols = vec[1] === 1 ? [...order].reverse() : order;
-        let moved = false, mergedCount = 0;
-        const mergedInto = new Set();
-        const merges = [];
-
-        for (const r of rows) for (const c of cols) {
-            const t = tileAt(r, c); if (!t) continue;
-            let nr = r, nc = c;
-            while (true) {
-                const tr = nr + vec[0], tc = nc + vec[1];
-                if (tr < 0 || tr > 3 || tc < 0 || tc > 3) break;
-                const other = tileAt(tr, tc);
-                if (!other) { nr = tr; nc = tc; continue; }
-                // Сливаемся, если номинал тот же и в эту плитку ещё не вливали в этом ходу
-                if (other.v === t.v && !mergedInto.has(other.id)) {
-                    t.dead = true; t.r = tr; t.c = tc;     // доедет до цели и исчезнет
-                    other.v *= 2; mergedInto.add(other.id); other.justMerged = true;
-                    const pts = Math.round(other.v * T2048_POINTS_PER_VALUE);
-                    score += pts; mergedCount++;
-                    merges.push({ t: other, pts });
-                    moved = true;
-                }
-                break;
-            }
-            if (!t.dead && (nr !== r || nc !== c)) { t.r = nr; t.c = nc; moved = true; }
-        }
-        if (!moved) return;
-        history2048 = snap;
-        if (hammerMode2048) { hammerMode2048 = false; grid2048.classList.remove('hammer-mode'); } // свайп отменяет выбор
-
-        // 1) Все плитки едут на новые места (CSS transition)
-        moving2048 = true;
-        const L = layout2048();
-        tiles2048.forEach(t => { if (t.el) t.el.style.transform = `translate(${L.pos(t.c)}px, ${L.pos(t.r)}px)`; });
-
-        // 2) Доехали — убираем поглощённые, слитые обновляем с «пульсом»
-        setTimeout(() => {
-            if (!isPlaying || currentGame !== '2048') { moving2048 = false; return; }
-            tiles2048.filter(t => t.dead).forEach(t => t.el && t.el.remove());
-            tiles2048 = tiles2048.filter(t => !t.dead);
-            let gained = null;
-            tiles2048.forEach(t => {
-                if (!t.justMerged) return;
-                t.justMerged = false;
-                renderTile(t, t.v >= T2048_BIG_TILE ? 'tile-merged-big' : 'tile-merged');
-            });
-
-            // Сочность слияний: искры из клетки, «+N», для крупных — вспышка
-            let bigMerge = 0;
-            merges.forEach(m => {
-                if (m.t.dead) return;
-                const ctr = cellCenter2048(m.t.r, m.t.c), conf = tMap[m.t.v] || { fx: '#776e65', n: 'MAX' };
-                createParticle(ctr.x, ctr.y, conf.fx, Math.min(26, 6 + Math.log2(m.t.v) * 2), 380 + Math.log2(m.t.v) * 40, 2.6);
-                createFloatingText(ctr.x, ctr.y - 6, `+${m.pts}`, conf.fx);
-                if (m.t.v >= T2048_BIG_TILE) bigMerge = Math.max(bigMerge, m.t.v);
-                // Крупные надписи — над и под сеткой, а не на плитке, чтобы не слипались с «+N»
-                const gr = grid2048.getBoundingClientRect();
-                if (m.t.v > maxTile2048) {
-                    if (m.t.v >= 64) createFloatingText(gr.left + gr.width / 2, gr.top - 30, `НОВЫЙ ЛОТ: ${conf.n}`, '#776e65');
-                    maxTile2048 = m.t.v;
-                }
-                // Первая плитка 512 / 1024 — награда: отмена хода
-                if (T2048_UNDO_TILES.includes(m.t.v) && !undoGranted2048[m.t.v]) {
-                    undoGranted2048[m.t.v] = true; undos2048++; gained = 'undo';
-                    createFloatingText(gr.left + gr.width / 2, gr.bottom + 22, '↩️ +1 отмена хода', '#4a90d9');
-                }
-            });
-            if (bigMerge) {
-                const conf = tMap[bigMerge] || { fx: '#edc22e' };
-                flashScreen(conf.fx, 0.22); playSynth('big'); haptic('medium');
-                const rect = grid2048.getBoundingClientRect();
-                createConfetti(rect.left + rect.width / 2, rect.top + rect.height * 0.6, 22, 1.1);
-            }
-
-            if (mergedCount) {
-                playSynth('merge');
-                score += Math.round(mergedCount * T2048_COMBO_POINTS * comboMult());
-                combo++;
-                if (combo > comboBest) comboBest = combo;
-                const rect = grid2048.getBoundingClientRect();
-                if (COMBO_MILESTONES.includes(combo)) {
-                    showComboToast(`🔥 КОМБО x${combo}`); playSynth('good');
-                    if (combo % 10 === 0) bonusCoins += 1;
-                } else if (mergedCount >= 2) {
-                    createFloatingText(rect.left + rect.width / 2, rect.top - 6, mergedCount >= 3 ? `✨ x${mergedCount} СЛИЯНИЯ!` : '✨ ДВОЙНОЕ!', '#d9a400');
-                } else if (combo >= 2) {
-                    createFloatingText(rect.left + rect.width / 2, rect.top - 6, `комбо x${combo}`, '#d9a400');
-                }
-                // Молоток зарабатывается серией ходов со слиянием (не покупается).
-                // Счётчик отдельный от combo и НЕ откатывается отменой хода —
-                // иначе «отмена + тот же ход» давала бы молотки бесконечно.
-                hammerProgress2048++;
-                if (hammerProgress2048 >= T2048_HAMMER_EVERY) {
-                    hammerProgress2048 = 0;
-                    if (hammers2048 < T2048_HAMMER_MAX) {
-                        hammers2048++; gained = gained || 'hammer';
-                        createFloatingText(rect.left + rect.width / 2, rect.top + rect.height + 48, '🔨 +1 молоток', '#d9a400');
-                        playSynth('good');
-                    }
-                }
-                haptic('light');
-            } else {
-                resetCombo(); // ход был, но без слияния — цепочка прервалась
-                hammerProgress2048 = 0;
-            }
-            add2048();
-            board2048 = boardValues();
-            updateHud();
-            render2048Tools(gained);
-            moving2048 = false;
-
-            if (!board2048.includes(0)) {
-                let canMove = false;
-                for (let i = 0; i < 4; i++) for (let j = 0; j < 3; j++) {
-                    if (board2048[i * 4 + j] === board2048[i * 4 + j + 1] ||
-                        board2048[j * 4 + i] === board2048[(j + 1) * 4 + i]) canMove = true;
-                }
-                if (!canMove) {
-                    // Ходов нет, но есть бонусы — даём шанс ими воспользоваться
-                    if (hammers2048 > 0 || (undos2048 > 0 && history2048)) showComboToast('Ходов нет — 🔨 или ↩️');
-                    else { clearTimeout(gameOverTimer2048); gameOverTimer2048 = setTimeout(gameOver, 800); }
-                }
-            }
-        }, SLIDE_MS);
-    }
-
-    // В 2048 холст только рисует частицы и всплывающие надписи поверх сетки
-    function loop2048Fx(time) {
-        if (!isPlaying || currentGame !== '2048') return;
-        let dt = (time - lastTime) / 1000; lastTime = time; if (dt > 0.1) dt = 0.1; if (!(dt > 0)) dt = 0;
-        ctx.clearRect(0, 0, width, height);
-        updateAndDrawParticles(dt);
-        gameReq = requestAnimationFrame(loop2048FxSafe);
-    }
-    const loop2048FxSafe = safeFrame(loop2048Fx);
-
     // ===== ЗМЕЙКИ =====
     // На поле лежат неоновые змейки — изогнутые, на несколько клеток, со
     // стрелкой на голове. Тап по змейке — она ползёт головой вперёд, тело
@@ -2203,7 +1869,7 @@
         document.getElementById('ui-time-box').style.display = 'flex';
         document.getElementById('ui-lives-box').style.display = 'flex';
         document.getElementById('btn-ingame-exit').style.display = 'block';
-        canvas.style.display = 'block'; grid2048.style.display = 'none';
+        canvas.style.display = 'block';
         gameReq = requestAnimationFrame(loopArrowsSafe);
     }
 
@@ -2518,6 +2184,839 @@
     const loopArrowsSafe = safeFrame(loopArrows);
 
 </script>
+<script>
+/* ===== КУБИКИ (id игры: blocks) — заменили 2048 18.10.2026 =====
+   Блок-пазл 8×8: три фигуры, тащишь на поле, полный ряд/столбец исчезает.
+   Самостоятельный модуль: свой холст, своё табло и свой цикл кадров.
+   С хабом связан тремя ниточками из Blocks.start(opts):
+     onScore(s) — счёт после каждого хода (табло хаба, рекорд, потолок);
+     onOver(s)  — партия кончилась (нет ходов или «Завершить») → экран итогов;
+     haptic(k)  — вибро Telegram.
+   Недоигранная партия хранится на устройстве (arh_blocks_state): закрыл игру
+   посреди партии — в следующий раз продолжишь с того же места. */
+const Blocks = (() => {
+'use strict';
+
+/* ================= константы ================= */
+const N = 8;
+const PALETTE = ['#f0453c', '#ff9a1f', '#ffcf24', '#57cf3d', '#2ec4f2', '#3c6ef2', '#a45cf0'];
+const GRAY = '#7d87ad';
+const FRAME = 6;
+const FONT = '"Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif';
+const STATE_KEY = 'arh_blocks_state', MUTE_KEY = 'arh_blocks_muted';
+const reduced = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+const ICON_SOUND = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 6a8.5 8.5 0 0 1 0 12"/></svg>';
+const ICON_MUTE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M17 9.5l5 5"/><path d="M22 9.5l-5 5"/></svg>';
+
+/* ================= фигуры =================
+   Доля каждой группы на лёгком (d=0) и самом сложном (d=1) уровне. */
+const GROUPS = {
+    single: [.06, .02], line2: [.08, .03], line3: [.10, .06], line4: [.09, .09], line5: [.05, .09],
+    sq2:    [.10, .07], sq3:   [.03, .09], rect23:[.04, .09], l3:    [.13, .07], l4:    [.13, .12],
+    t4:     [.07, .08], sz4:   [.05, .08], l5:    [.07, .11],
+};
+const DEFS = [
+    ['single', 'X'],
+    ['line2', 'XX'], ['line2', 'X/X'],
+    ['line3', 'XXX'], ['line3', 'X/X/X'],
+    ['line4', 'XXXX'], ['line4', 'X/X/X/X'],
+    ['line5', 'XXXXX'], ['line5', 'X/X/X/X/X'],
+    ['sq2', 'XX/XX'],
+    ['sq3', 'XXX/XXX/XXX'],
+    ['rect23', 'XXX/XXX'], ['rect23', 'XX/XX/XX'],
+    ['l3', 'XX/X.'], ['l3', 'XX/.X'], ['l3', 'X./XX'], ['l3', '.X/XX'],
+    ['l4', 'X./X./XX'], ['l4', '.X/.X/XX'], ['l4', 'XX/X./X.'], ['l4', 'XX/.X/.X'],
+    ['l4', 'XXX/X..'], ['l4', 'XXX/..X'], ['l4', 'X../XXX'], ['l4', '..X/XXX'],
+    ['t4', 'XXX/.X.'], ['t4', '.X./XXX'], ['t4', 'X./XX/X.'], ['t4', '.X/XX/.X'],
+    ['sz4', '.XX/XX.'], ['sz4', 'XX./.XX'], ['sz4', 'X./XX/.X'], ['sz4', '.X/XX/X.'],
+    ['l5', 'XXX/X../X..'], ['l5', 'XXX/..X/..X'], ['l5', 'X../X../XXX'], ['l5', '..X/..X/XXX'],
+];
+const SHAPES = DEFS.map(([group, pat], id) => {
+    const rows = pat.split('/');
+    const mask = rows.map(r => r.split('').map(ch => ch === 'X'));
+    const cells = [];
+    mask.forEach((row, r) => row.forEach((v, c) => { if (v) cells.push([r, c]); }));
+    return { id, group, mask, cells, h: rows.length, w: rows[0].length, n: cells.length };
+});
+const groupCount = {};
+SHAPES.forEach(s => { groupCount[s.group] = (groupCount[s.group] || 0) + 1; });
+const groupShare = (g, d) => GROUPS[g][0] + (GROUPS[g][1] - GROUPS[g][0]) * d;
+const shapeWeight = (sh, d) => groupShare(sh.group, d) / groupCount[sh.group];
+
+/* ================= DOM ================= */
+const $ = id => document.getElementById(id);
+const root = $('blocks-root'), stage = $('bk-stage'), canvas = $('bk-cv'), ctx = canvas.getContext('2d');
+const hud = $('bk-hud'), scoreEl = $('bk-score'), bestEl = $('bk-best'), crownEl = $('bk-crown');
+const lvlText = $('bk-lvl-text'), lvlBar = $('bk-lvl-bar'), toastEl = $('bk-toast'), modal = $('bk-modal');
+const btnSound = $('bk-sound'), btnExit = $('bk-exit');
+
+/* ================= состояние ================= */
+let opts = { onScore() {}, onOver() {}, haptic() {} };
+let active = false, raf = 0;
+let grid = emptyGrid(), tray = [null, null, null], fitFlags = [false, false, false];
+let score = 0, best = 0, bestAtStart = 0, combo = 0, sinceClear = 0, rounds = 0, moves = 0;
+let level = 1, over = false, muted = false, recordToasted = false, shown = 0;
+let drag = null, modalOpen = false;
+let dying = [], particles = [], texts = [];
+const popAt = new Map();
+let grayStart = 0, overTimer = 0, shakeUntil = 0, shakeDur = 1, shakeAmp = 0;
+
+let W = 0, H = 0, dpr = 1, cell = 40, boardSize = 320, boardX = 0, boardY = 0;
+let trayY = 0, trayH = 120, slotW = 100, trayCell = 20, boardCanvas = null;
+
+/* ================= утилиты ================= */
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
+const easeOutBack = t => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); };
+const fmt = n => Math.round(n).toLocaleString('ru-RU');
+function plural(n, forms) { const a = n % 100, b = n % 10; if (a > 10 && a < 20) return forms[2]; if (b === 1) return forms[0]; if (b >= 2 && b <= 4) return forms[1]; return forms[2]; }
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+function pickWeighted(list, w) {
+    let tot = 0; const ws = list.map(x => { const v = Math.max(0, w(x)); tot += v; return v; });
+    if (tot <= 0) return list[Math.floor(Math.random() * list.length)];
+    let r = Math.random() * tot;
+    for (let i = 0; i < list.length; i++) { r -= ws[i]; if (r <= 0) return list[i]; }
+    return list[list.length - 1];
+}
+function hapt(kind) { try { opts.haptic(kind); } catch (e) {} }
+
+/* ================= логика поля ================= */
+function emptyGrid() { return Array.from({ length: N }, () => Array(N).fill(0)); }
+function fits(g, sh, r, c) {
+    if (r < 0 || c < 0 || r + sh.h > N || c + sh.w > N) return false;
+    for (const [dr, dc] of sh.cells) if (g[r + dr][c + dc]) return false;
+    return true;
+}
+function canPlaceAnywhere(g, sh) {
+    for (let r = 0; r <= N - sh.h; r++) for (let c = 0; c <= N - sh.w; c++) if (fits(g, sh, r, c)) return true;
+    return false;
+}
+function fullLines(g) {
+    const rows = [], cols = [];
+    for (let k = 0; k < N; k++) {
+        let fr = true, fc = true;
+        for (let j = 0; j < N; j++) { if (!g[k][j]) fr = false; if (!g[j][k]) fc = false; }
+        if (fr) rows.push(k); if (fc) cols.push(k);
+    }
+    return { rows, cols };
+}
+function applyPlacement(g, sh, r, c, val) {
+    const ng = g.map(row => row.slice());
+    for (const [dr, dc] of sh.cells) ng[r + dr][c + dc] = val;
+    const { rows, cols } = fullLines(ng);
+    for (const k of rows) for (let j = 0; j < N; j++) ng[k][j] = 0;
+    for (const k of cols) for (let j = 0; j < N; j++) ng[j][k] = 0;
+    return { g: ng, rows, cols };
+}
+
+/* ================= генератор фигур =================
+   1) Для каждой фигуры ищем лучшее место: сколько рядов закроет, насколько
+      плотно встанет в дыру (касание стенок и блоков), не оставит ли одиночных дыр.
+   2) «Подсказка» — фигура, которая закрывает ряд или плотно входит в дыру.
+      Шанс подсказки падает с уровнем: 85% → 30%.
+   3) Набор строим по очереди на копии поля: ставим фигуру в её лучшее место
+      и подбираем следующую уже под новое поле — так весь набор гарантированно
+      помещается. На высоких уровнях гарантия иногда только для первой фигуры. */
+const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+const inShape = (sh, r, c) => r >= 0 && r < sh.h && c >= 0 && c < sh.w && sh.mask[r][c];
+
+function evalPlacement(g, rc, cc, sh, r, c) {
+    const addR = new Array(N).fill(0), addC = new Array(N).fill(0);
+    for (const [dr, dc] of sh.cells) { addR[r + dr]++; addC[c + dc]++; }
+    let lines = 0;
+    for (let i = 0; i < N; i++) {
+        if (addR[i] && rc[i] + addR[i] === N) lines++;
+        if (addC[i] && cc[i] + addC[i] === N) lines++;
+    }
+    let contact = 0, edges = 0, holes = 0;
+    const seen = new Set();
+    for (const [dr, dc] of sh.cells) {
+        for (const [ar, ac] of DIRS) {
+            const nr = dr + ar, nc = dc + ac;
+            if (inShape(sh, nr, nc)) continue;
+            edges++;
+            const R = r + nr, C = c + nc;
+            if (R < 0 || R >= N || C < 0 || C >= N || g[R][C]) { contact++; continue; }
+            if (lines) continue;
+            const key = R * N + C;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            let blocked = true;
+            for (const [br, bc] of DIRS) {
+                const R2 = R + br, C2 = C + bc;
+                if (R2 < 0 || R2 >= N || C2 < 0 || C2 >= N || g[R2][C2] || inShape(sh, R2 - r, C2 - c)) continue;
+                blocked = false; break;
+            }
+            if (blocked) holes++;
+        }
+    }
+    return { lines, v: lines * 14 + (contact / edges) * 6 - holes * 4 + sh.n * 0.25 };
+}
+function evaluateShapes(g) {
+    const rc = g.map(row => row.reduce((a, x) => a + (x ? 1 : 0), 0));
+    const cc = Array.from({ length: N }, (_, c) => g.reduce((a, row) => a + (row[c] ? 1 : 0), 0));
+    const out = [];
+    for (const sh of SHAPES) {
+        let bestP = null;
+        for (let r = 0; r <= N - sh.h; r++) for (let c = 0; c <= N - sh.w; c++) {
+            if (!fits(g, sh, r, c)) continue;
+            const e = evalPlacement(g, rc, cc, sh, r, c);
+            if (!bestP || e.v > bestP.v) bestP = { sh, r, c, lines: e.lines, v: e.v };
+        }
+        if (bestP) out.push(bestP);
+    }
+    return out;
+}
+/* Сложность 0…1: половина — от числа наборов (растёт каждый ход),
+   половина — от очков. Уровень ≈ +1 каждые 25–35 фигур, 10-й — к ~300-й. */
+function difficulty() {
+    const r = Math.min(1, rounds / 100);
+    const s = Math.min(1, Math.pow(score / 60000, 0.6));
+    return Math.min(1, 0.5 * r + 0.5 * s);
+}
+function levelInfo() {
+    const x = difficulty() * 10;
+    const lv = Math.min(10, 1 + Math.floor(x));
+    return { lv, frac: lv >= 10 ? 1 : x - Math.floor(x) };
+}
+function pickHelpful(evals, d, dup) {
+    let pool = evals.filter(e => e.lines > 0);
+    if (!pool.length) {
+        const s = evals.slice().sort((a, b) => b.v - a.v);
+        pool = s.slice(0, Math.max(4, Math.ceil(s.length * 0.3)));
+    }
+    const maxV = Math.max.apply(null, pool.map(e => e.v));
+    const temp = 2.5 + 5 * d;
+    return pickWeighted(pool, e => Math.exp((e.v - maxV) / temp) * Math.pow(groupShare(e.sh.group, d), 0.6) * dup(e.sh));
+}
+function makeSet() {
+    const d = difficulty();
+    const help = 0.85 - 0.55 * d;
+    const guaranteeAll = d < 0.7 || Math.random() < 1 - ((d - 0.7) / 0.3) * 0.6;
+    let sim = grid;
+    const picks = [];
+    const dup = sh => Math.pow(0.3, picks.filter(x => x === sh).length);
+    for (let i = 0; i < 3; i++) {
+        const evals = evaluateShapes(sim);
+        const mustFit = i === 0 || guaranteeAll;
+        let ev = null;
+        if (evals.length) {
+            if (Math.random() < help) ev = pickHelpful(evals, d, dup);
+            if (!ev && mustFit) ev = pickWeighted(evals, e => shapeWeight(e.sh, d) * dup(e.sh));
+        }
+        let sh = ev ? ev.sh : null;
+        if (!sh) {
+            sh = pickWeighted(SHAPES, s => shapeWeight(s, d) * dup(s));
+            ev = evals.find(e => e.sh === sh) || null;
+        }
+        picks.push(sh);
+        if (ev) sim = applyPlacement(sim, sh, ev.r, ev.c, 1).g;
+    }
+    const colors = shuffle([0, 1, 2, 3, 4, 5, 6]);
+    return shuffle(picks).map((sh, k) => ({ sh, color: colors[k], anim: null }));
+}
+function startBoard() {
+    const g = emptyGrid();
+    const count = 2 + (Math.random() < 0.5 ? 1 : 0);
+    const usedR = new Set(), usedC = new Set();
+    for (let k = 0; k < count; k++) {
+        const horiz = Math.random() < 0.5;
+        const used = horiz ? usedR : usedC;
+        let idx; do { idx = Math.floor(Math.random() * N); } while (used.has(idx));
+        used.add(idx);
+        const gap = 2 + (Math.random() < 0.5 ? 1 : 0);
+        const gs = Math.floor(Math.random() * (N - gap + 1));
+        const col = 1 + Math.floor(Math.random() * PALETTE.length);
+        for (let j = 0; j < N; j++) {
+            if (j >= gs && j < gs + gap) continue;
+            if (horiz) g[idx][j] = col; else g[j][idx] = col;
+        }
+    }
+    const fl = fullLines(g);
+    fl.rows.forEach(r => { g[r][Math.floor(Math.random() * N)] = 0; });
+    fl.cols.forEach(c => { g[Math.floor(Math.random() * N)][c] = 0; });
+    return g;
+}
+
+/* ================= звук ================= */
+let actx = null;
+function ac() {
+    if (muted) return null;
+    try {
+        if (!actx) { const C = window.AudioContext || window.webkitAudioContext; if (!C) return null; actx = new C(); }
+        if (actx.state === 'suspended') actx.resume();
+    } catch (e) { return null; }
+    return actx;
+}
+function tone(freq, dur, type, vol, when, slide) {
+    const a = ac(); if (!a) return;
+    try {
+        const t = a.currentTime + (when || 0);
+        const o = a.createOscillator(), g = a.createGain();
+        o.type = type; o.frequency.setValueAtTime(freq, t);
+        if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(40, freq * slide), t + dur);
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(vol, t + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        o.connect(g); g.connect(a.destination);
+        o.start(t); o.stop(t + dur + 0.03);
+    } catch (e) {}
+}
+const sfx = {
+    pick() { tone(660, 0.05, 'triangle', 0.06); },
+    back() { tone(320, 0.08, 'sine', 0.05, 0, 0.7); },
+    place() { tone(220, 0.09, 'triangle', 0.16, 0, 0.55); tone(110, 0.08, 'sine', 0.12); },
+    clear(L, cmb) {
+        const base = 440 * Math.pow(2, Math.min(cmb - 1, 8) / 12);
+        const steps = [0, 4, 7, 12, 16, 19];
+        for (let k = 0; k < Math.min(3 + L, 6); k++) tone(base * Math.pow(2, steps[k] / 12), 0.16, 'triangle', 0.09, k * 0.055);
+    },
+    level() { [0, 5, 9].forEach((s, k) => tone(523 * Math.pow(2, s / 12), 0.14, 'sine', 0.08, k * 0.08)); },
+    over() { [7, 4, 0, -5].forEach((s, k) => tone(392 * Math.pow(2, s / 12), 0.22, 'triangle', 0.1, k * 0.13)); },
+};
+
+/* ================= отрисовка ================= */
+const spriteCache = new Map();
+function hexRgb(h) { const n = parseInt(h.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
+function mix(h, t, k) { const a = hexRgb(h), b = hexRgb(t); return 'rgb(' + a.map((v, i) => Math.round(v + (b[i] - v) * k)).join(',') + ')'; }
+function sprite(key, size) {
+    const px = Math.max(4, Math.round(size * dpr));
+    const id = key + ':' + px;
+    let c = spriteCache.get(id);
+    if (c) return c;
+    c = document.createElement('canvas'); c.width = c.height = px;
+    const g = c.getContext('2d');
+    const hex = key === 'g' ? GRAY : PALETTE[key];
+    const s = px, b = Math.max(2, Math.round(s * 0.14));
+    const poly = (col, pts) => { g.fillStyle = col; g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); for (let k = 1; k < pts.length; k++) g.lineTo(pts[k][0], pts[k][1]); g.closePath(); g.fill(); };
+    g.fillStyle = hex; g.fillRect(0, 0, s, s);
+    poly(mix(hex, '#ffffff', 0.42), [[0, 0], [s, 0], [s - b, b], [b, b]]);
+    poly(mix(hex, '#ffffff', 0.22), [[0, 0], [b, b], [b, s - b], [0, s]]);
+    poly(mix(hex, '#000000', 0.20), [[s, 0], [s, s], [s - b, s - b], [s - b, b]]);
+    poly(mix(hex, '#000000', 0.34), [[0, s], [b, s - b], [s - b, s - b], [s, s]]);
+    const gr = g.createLinearGradient(0, b, 0, s - b);
+    gr.addColorStop(0, mix(hex, '#ffffff', 0.10)); gr.addColorStop(1, mix(hex, '#000000', 0.06));
+    g.fillStyle = gr; g.fillRect(b, b, s - 2 * b, s - 2 * b);
+    g.fillStyle = 'rgba(255,255,255,.30)'; g.fillRect(b + s * 0.06, b + s * 0.06, s * 0.17, s * 0.08);
+    const lw = Math.max(1, Math.round(s * 0.03));
+    g.strokeStyle = mix(hex, '#000000', 0.5); g.lineWidth = lw; g.strokeRect(lw / 2, lw / 2, s - lw, s - lw);
+    spriteCache.set(id, c);
+    return c;
+}
+function drawBlock(key, x, y, s) {
+    const base = Math.abs(s - trayCell) < 1.5 ? trayCell : cell;
+    ctx.drawImage(sprite(key, base), x, y, s, s);
+}
+function drawPiece(sh, key, cx, cy, s, shadow) {
+    const x0 = cx - sh.w * s / 2, y0 = cy - sh.h * s / 2;
+    if (shadow) {
+        ctx.fillStyle = 'rgba(8,12,40,.28)';
+        for (const [r, c] of sh.cells) ctx.fillRect(x0 + c * s + s * 0.08, y0 + r * s + s * 0.16, s, s);
+    }
+    for (const [r, c] of sh.cells) drawBlock(key, x0 + c * s, y0 + r * s, s);
+}
+function rrect(g, x, y, w, h, r) {
+    g.beginPath(); g.moveTo(x + r, y);
+    g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+    g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+}
+function buildBoard() {
+    const size = boardSize + FRAME * 2;
+    const c = document.createElement('canvas');
+    c.width = c.height = Math.max(1, Math.round(size * dpr));
+    const g = c.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const rad = Math.min(14, cell * 0.3);
+    rrect(g, 0, 0, size, size, rad); g.fillStyle = '#151c48'; g.fill();
+    rrect(g, 0.75, 0.75, size - 1.5, size - 1.5, rad); g.strokeStyle = 'rgba(255,255,255,.10)'; g.lineWidth = 1.5; g.stroke();
+    for (let r = 0; r < N; r++) for (let col = 0; col < N; col++) {
+        const x = FRAME + col * cell, y = FRAME + r * cell;
+        g.fillStyle = '#212a60'; g.fillRect(x + 1, y + 1, cell - 2, cell - 2);
+        g.fillStyle = 'rgba(0,0,0,.22)'; g.fillRect(x + 1, y + 1, cell - 2, Math.max(1, Math.round(cell * 0.07)));
+    }
+    boardCanvas = c;
+}
+function layout() {
+    const rect = stage.getBoundingClientRect();
+    if (rect.width < 10 || rect.height < 10) return;   // экран спрятан — считать нечего
+    W = rect.width; H = rect.height;
+    dpr = Math.min(window.devicePixelRatio || 1, 3);
+    canvas.width = Math.max(1, Math.round(W * dpr)); canvas.height = Math.max(1, Math.round(H * dpr));
+    const hudH = hud.offsetHeight;
+    const topGap = 14, between = 22, bottom = 16;
+    const cW = (Math.min(W, 540) - FRAME * 2) / 8;
+    const cH = (H - hudH - topGap - between - bottom - FRAME * 2) / 11;
+    cell = Math.max(14, Math.floor(Math.min(cW, cH)));
+    boardSize = cell * 8; trayH = cell * 3;
+    const used = hudH + topGap + FRAME * 2 + boardSize + between + trayH + bottom;
+    const free = Math.max(0, H - used);
+    boardX = Math.round((W - boardSize) / 2);
+    boardY = Math.round(hudH + topGap + FRAME + free * 0.4);
+    trayY = Math.round(boardY + boardSize + FRAME + between + free * 0.2);
+    slotW = boardSize / 3;
+    trayCell = Math.max(8, Math.floor(Math.min(cell * 0.56, (slotW - 6) / 5, (trayH - 4) / 5)));
+    spriteCache.clear();
+    buildBoard();
+    toastEl.style.top = Math.max(hudH + 2, boardY - FRAME - 46) + 'px';
+}
+
+function trayCenter(i) { return { x: boardX + slotW * (i + 0.5), y: trayY + trayH / 2 }; }
+function trayPos(i, now) {
+    const p = tray[i], c0 = trayCenter(i), a = p.anim;
+    if (!a) return { x: c0.x, y: c0.y, s: trayCell };
+    const t = (now - a.t0) / (a.type === 'in' ? 300 : 150);
+    if (t >= 1) { p.anim = null; return { x: c0.x, y: c0.y, s: trayCell }; }
+    if (a.type === 'in') {
+        if (t < 0) return { x: c0.x + W, y: c0.y, s: trayCell };
+        return { x: c0.x + (1 - easeOutBack(t)) * W * 0.6, y: c0.y, s: trayCell };
+    }
+    const e = easeOutCubic(Math.max(0, t));
+    return { x: lerp(a.x, c0.x, e), y: lerp(a.y, c0.y, e), s: lerp(a.s, trayCell, e) };
+}
+function dragTarget(d) { return { x: d.px, y: d.py }; }
+function dragRender(d, now) {
+    const k = easeOutCubic(clamp((now - d.t0) / 70, 0, 1));
+    const t = dragTarget(d);
+    return { x: lerp(d.fx, t.x, k), y: lerp(d.fy, t.y, k), s: lerp(d.fs, cell, k) };
+}
+
+function drawGrid(now) {
+    const prev = drag && drag.snap ? drag.snap.clearSet : null;
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+        const v = grid[r][c];
+        if (!v) continue;
+        const k = r * N + c;
+        let key = v - 1;
+        if (prev && prev.has(k)) key = drag.p.color;
+        if (grayStart && now >= grayStart + k * 14) key = 'g';
+        let s = cell;
+        const pt = popAt.get(k);
+        if (pt !== undefined) {
+            const t = (now - pt) / 200;
+            if (t >= 1) popAt.delete(k); else s = cell * (1 + 0.10 * Math.sin(Math.PI * Math.max(0, t)));
+        }
+        const x = boardX + c * cell, y = boardY + r * cell;
+        drawBlock(key, x - (s - cell) / 2, y - (s - cell) / 2, s);
+    }
+}
+function drawGhost(now) {
+    if (!drag || !drag.snap) return;
+    const sn = drag.snap, sh = drag.p.sh;
+    for (const [dr, dc] of sh.cells) {
+        const R = sn.r + dr, C = sn.c + dc;
+        ctx.globalAlpha = sn.clearSet.has(R * N + C) ? 1 : 0.42;
+        drawBlock(drag.p.color, boardX + C * cell, boardY + R * cell, cell);
+    }
+    ctx.globalAlpha = 1;
+    if (sn.clearSet.size) {
+        ctx.fillStyle = 'rgba(255,255,255,' + (0.10 + 0.08 * Math.sin(now / 110)) + ')';
+        for (const k of sn.clearSet) ctx.fillRect(boardX + (k % N) * cell, boardY + Math.floor(k / N) * cell, cell, cell);
+    }
+}
+const DIE_MS = 340;
+function drawDying(now) {
+    dying = dying.filter(d => {
+        const t = (now - d.t0 - d.delay) / DIE_MS;
+        const x = boardX + d.c * cell, y = boardY + d.r * cell;
+        if (t < 0) { drawBlock(d.color, x, y, cell); return true; }
+        if (t >= 1) return false;
+        if (!d.burst && t > 0.22) { d.burst = true; burst(x + cell / 2, y + cell / 2, d.color); }
+        let s, a = 1, flash;
+        if (t < 0.22) { const u = t / 0.22; s = 1 + 0.16 * u; flash = 0.55 * u; }
+        else { const u = (t - 0.22) / 0.78; s = 1.16 * (1 - u * u); a = 1 - u * 0.5; flash = 0.55 * (1 - u); }
+        const ss = cell * s, ox = x + (cell - ss) / 2, oy = y + (cell - ss) / 2;
+        ctx.globalAlpha = a; drawBlock(d.color, ox, oy, ss);
+        ctx.fillStyle = 'rgba(255,255,255,' + flash + ')'; ctx.fillRect(ox, oy, ss, ss);
+        ctx.globalAlpha = 1;
+        return true;
+    });
+}
+function burst(x, y, color) {
+    const n = reduced ? 2 : 6, now = performance.now();
+    for (let k = 0; k < n; k++) {
+        const ang = Math.random() * Math.PI * 2, sp = 90 + Math.random() * 220;
+        particles.push({ x, y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp - 140, s: cell * (0.12 + Math.random() * 0.14),
+            color, t0: now, life: 450 + Math.random() * 350, rot: Math.random() * 6, vr: (Math.random() * 2 - 1) * 10 });
+    }
+}
+function drawParticles(dt, now) {
+    particles = particles.filter(p => {
+        const k = (now - p.t0) / p.life;
+        if (k >= 1) return false;
+        p.vy += 1100 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.vr * dt;
+        const s = p.s * (1 - k * 0.4);
+        ctx.save(); ctx.globalAlpha = 1 - k; ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+        ctx.fillStyle = PALETTE[p.color]; ctx.fillRect(-s / 2, -s / 2, s, s);
+        ctx.fillStyle = 'rgba(255,255,255,.45)'; ctx.fillRect(-s / 2, -s / 2, s, s * 0.3);
+        ctx.restore();
+        return true;
+    });
+}
+function addText(str, x, y, size, fill, stroke, dur, rise, delay) {
+    texts.push({ str, x, y, size, fill, stroke, dur, rise, t0: performance.now() + (delay || 0) });
+}
+function drawTexts(now) {
+    texts = texts.filter(t => {
+        const k = (now - t.t0) / t.dur;
+        if (k < 0) return true;
+        if (k >= 1) return false;
+        const pop = Math.max(0.01, k < 0.16 ? easeOutBack(k / 0.16) : 1);
+        ctx.save();
+        ctx.globalAlpha = clamp(k > 0.72 ? 1 - (k - 0.72) / 0.28 : 1, 0, 1);
+        ctx.translate(t.x, t.y - t.rise * easeOutCubic(k));
+        ctx.scale(pop, pop);
+        ctx.font = '900 ' + Math.round(t.size) + 'px ' + FONT;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+        const maxW = boardSize * 0.96;
+        ctx.lineWidth = t.size * 0.2; ctx.strokeStyle = t.stroke; ctx.strokeText(t.str, 0, 0, maxW);
+        ctx.fillStyle = t.fill; ctx.fillText(t.str, 0, 0, maxW);
+        ctx.restore();
+        return true;
+    });
+}
+function drawTray(now) {
+    for (let i = 0; i < 3; i++) {
+        const p = tray[i];
+        if (!p || (drag && drag.i === i)) continue;
+        const q = trayPos(i, now);
+        drawPiece(p.sh, fitFlags[i] && !grayStart ? p.color : 'g', q.x, q.y, q.s, false);
+    }
+}
+function shake(amp, dur) { shakeAmp = amp; shakeDur = dur; shakeUntil = performance.now() + dur; }
+
+let last = 0;
+function frame(now) {
+    if (!active) return;
+    try {
+        const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
+        last = now;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, W, H);
+        if (now < shakeUntil) {
+            const a = shakeAmp * (shakeUntil - now) / shakeDur;
+            ctx.translate((Math.random() * 2 - 1) * a, (Math.random() * 2 - 1) * a);
+        }
+        if (boardCanvas) ctx.drawImage(boardCanvas, boardX - FRAME, boardY - FRAME, boardSize + FRAME * 2, boardSize + FRAME * 2);
+        drawGrid(now);
+        drawGhost(now);
+        drawDying(now);
+        drawTray(now);
+        if (drag) { const q = dragRender(drag, now); drawPiece(drag.p.sh, drag.p.color, q.x, q.y, q.s, true); }
+        drawParticles(dt, now);
+        drawTexts(now);
+        tickScore();
+    } catch (e) { console.error('[кубики]', e); }
+    raf = requestAnimationFrame(frame);
+}
+function tickScore() {
+    if (shown === score) return;
+    const diff = score - shown;
+    shown += Math.sign(diff) * Math.max(1, Math.ceil(Math.abs(diff) * 0.12));
+    if ((diff > 0 && shown > score) || (diff < 0 && shown < score)) shown = score;
+    scoreEl.textContent = fmt(shown);
+}
+
+/* ================= ход ================= */
+const PRAISE = ['', '', 'Здорово!', 'Отлично!', 'Потрясающе!'];
+function place(i, r, c) {
+    const p = tray[i], sh = p.sh;
+    tray[i] = null;
+    const now = performance.now();
+    for (const [dr, dc] of sh.cells) { grid[r + dr][c + dc] = p.color + 1; popAt.set((r + dr) * N + (c + dc), now); }
+    moves++;
+    let gained = sh.n;
+    const fl = fullLines(grid);
+    const L = fl.rows.length + fl.cols.length;
+    sfx.place();
+    if (L) {
+        combo++; sinceClear = 0;
+        const cells = new Map();
+        for (const k of fl.rows) for (let j = 0; j < N; j++) cells.set(k * N + j, grid[k][j]);
+        for (const k of fl.cols) for (let j = 0; j < N; j++) cells.set(j * N + k, grid[j][k]);
+        const pr = r + (sh.h - 1) / 2, pc = c + (sh.w - 1) / 2;
+        let sx = 0, sy = 0;
+        cells.forEach((v, k) => {
+            const rr = Math.floor(k / N), cc = k % N;
+            sx += cc; sy += rr;
+            dying.push({ r: rr, c: cc, color: v - 1, t0: now, delay: 40 + (Math.abs(rr - pr) + Math.abs(cc - pc)) * 24, burst: false });
+            grid[rr][cc] = 0; popAt.delete(k);
+        });
+        const pts = Math.round(cells.size * L * (1 + (combo - 1) * 0.5)) * 10;
+        gained += pts;
+        const mx = clamp(boardX + (sx / cells.size + 0.5) * cell, boardX + cell * 1.3, boardX + boardSize - cell * 1.3);
+        const my = boardY + (sy / cells.size + 0.5) * cell;
+        addText('+' + fmt(pts), mx, my, cell * 0.62, '#ffffff', '#1d2a78', 900, cell * 0.9);
+        const midX = boardX + boardSize / 2, midY = boardY + boardSize * 0.40;
+        const word = L >= 5 ? 'Невероятно!' : PRAISE[L];
+        if (word) addText(word, midX, midY, cell * 0.95, '#ffffff', '#1d2a78', 1100, cell * 0.5, 80);
+        if (combo >= 2) addText('Комбо ' + combo, midX, midY + (word ? cell * 0.95 : 0), cell * 0.7, '#ffd23f', '#7a3c00', 1000, cell * 0.5, word ? 160 : 60);
+        sfx.clear(L, combo);
+        if (L >= 2 && !reduced) shake(L >= 3 ? cell * 0.12 : cell * 0.06, 260);
+        if (grid.every(row => row.every(v => !v))) {
+            gained += 300;
+            addText('Поле чистое! +300', midX, midY + cell * 1.9, cell * 0.6, '#b4f59a', '#1f5a12', 1400, cell * 0.5, 260);
+        }
+        hapt(L >= 2 ? 'heavy' : 'medium');
+    } else {
+        sinceClear++;
+        if (sinceClear >= 3) combo = 0;
+        hapt('light');
+    }
+    score += gained;
+    if (tray.every(x => !x)) refill(); else updateFits();
+    updateHud();
+    checkOver();
+    save();
+}
+function refill() {
+    const set = makeSet();
+    rounds++;
+    const now = performance.now();
+    set.forEach((p, i) => { p.anim = reduced ? null : { type: 'in', t0: now + i * 50 }; });
+    tray = set;
+    updateFits();
+}
+function updateFits() { fitFlags = tray.map(p => !!p && canPlaceAnywhere(grid, p.sh)); }
+function updateHud() {
+    if (score > best) {
+        best = score;
+        bestEl.textContent = fmt(best);
+        crownEl.classList.remove('bk-pulse'); void crownEl.getBoundingClientRect(); crownEl.classList.add('bk-pulse');
+        if (!recordToasted && bestAtStart > 0) { recordToasted = true; toast('Новый рекорд!', 1600); }
+    }
+    const li = levelInfo();
+    if (li.lv > level) {
+        level = li.lv;
+        if (moves > 0) { toast('Уровень ' + level + ' · фигуры сложнее', 1900); sfx.level(); }
+    }
+    lvlText.textContent = 'Уровень ' + level;
+    lvlBar.style.width = (level >= 10 ? 100 : Math.round(li.frac * 100)) + '%';
+    try { opts.onScore(score); } catch (e) { console.error(e); }
+}
+function checkOver() {
+    if (over) return;
+    if (tray.some((p, i) => p && fitFlags[i])) return;
+    over = true;
+    clearState();
+    grayStart = performance.now() + 450;
+    sfx.over(); hapt('heavy');
+    clearTimeout(overTimer);
+    // Сначала поле красиво «гаснет», потом — экран итогов хаба
+    overTimer = setTimeout(() => { if (active) opts.onOver(score); }, 450 + N * N * 14 + 500);
+}
+function newGame() {
+    clearTimeout(overTimer);
+    grid = startBoard();
+    score = 0; shown = 0; combo = 0; sinceClear = 0; rounds = 0; moves = 0; level = 1;
+    over = false; grayStart = 0; recordToasted = false; drag = null;
+    dying = []; particles = []; texts = []; popAt.clear();
+    scoreEl.textContent = '0';
+    refill();
+    updateHud();
+    checkOver();
+    save();
+    toast('Тащи фигуры на поле — полный ряд или столбец исчезает', 3200);
+}
+
+/* ================= недоигранная партия ================= */
+function serialize() {
+    return { grid, tray: tray.map(p => p ? { s: p.sh.id, c: p.color } : null),
+        score, combo, sinceClear, rounds, moves, level };
+}
+function save() {
+    if (!active || over) return;
+    try { localStorage.setItem(STATE_KEY, JSON.stringify(serialize())); } catch (e) {}
+}
+function clearState() { try { localStorage.removeItem(STATE_KEY); } catch (e) {} }
+function restore() {
+    let o = null;
+    try { o = JSON.parse(localStorage.getItem(STATE_KEY) || 'null'); } catch (e) { o = null; }
+    if (!o || typeof o !== 'object' || !Array.isArray(o.grid) || o.grid.length !== N || !Array.isArray(o.tray)) return false;
+    const g = o.grid.map(row => Array.from({ length: N }, (_, j) => {
+        const v = Array.isArray(row) ? (row[j] | 0) : 0;
+        return v >= 0 && v <= PALETTE.length ? v : 0;
+    }));
+    const t = [0, 1, 2].map(k => {
+        const x = o.tray[k];
+        return x && SHAPES[x.s] ? { sh: SHAPES[x.s], color: Math.abs(x.c | 0) % PALETTE.length, anim: null } : null;
+    });
+    if (t.every(x => !x)) return false;
+    grid = g; tray = t;
+    score = Math.max(0, o.score | 0); combo = o.combo | 0; sinceClear = o.sinceClear | 0;
+    rounds = o.rounds | 0; moves = o.moves | 0; level = clamp((o.level | 0) || 1, 1, 10);
+    over = false; grayStart = 0; recordToasted = false; drag = null;
+    dying = []; particles = []; texts = []; popAt.clear();
+    return true;
+}
+
+/* ================= окна и тост ================= */
+let toastTimer = 0;
+function toast(msg, ms) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('bk-show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove('bk-show'), ms || 1800);
+}
+function closeModal() { modal.hidden = true; modalOpen = false; modal.innerHTML = ''; }
+function askExit() {
+    if (!active || modalOpen || over) return;
+    if (drag) { drop(true); }
+    modal.innerHTML = '<div class="bk-card" role="dialog" aria-modal="true">' +
+        '<h2>Завершить игру?</h2>' +
+        '<p>Результат ' + fmt(score) + ' ' + plural(score, ['очко', 'очка', 'очков']) + ' пойдёт в рекорд.</p>' +
+        '<div class="bk-actions">' +
+        '<button class="bk-btn bk-alt" id="bk-no" type="button">Играть дальше</button>' +
+        '<button class="bk-btn" id="bk-yes" type="button">Завершить</button></div></div>';
+    modal.hidden = false; modalOpen = true;
+    $('bk-no').addEventListener('click', closeModal);
+    $('bk-yes').addEventListener('click', () => {
+        closeModal(); over = true; clearState(); clearTimeout(overTimer);
+        opts.onOver(score);
+    });
+    $('bk-yes').focus();
+}
+
+/* ================= управление ================= */
+function local(e) { const r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+function slotAt(x, y) {
+    if (y < trayY - cell * 0.4 || y > trayY + trayH + cell * 0.6) return -1;
+    const i = Math.floor((x - boardX) / slotW);
+    return i >= 0 && i < 3 ? i : -1;
+}
+/* Фигура едет быстрее пальца, и тем быстрее, чем резче ведёшь (как ускорение мыши).
+   Медленно — почти 1:1, чтобы точно попасть в дыру; резкий взмах — до ×2,4 (мышь до ×2). */
+function moveDrag(dx, dy, ts) {
+    const d = drag;
+    const dt = Math.max(4, (ts - d.lt) || 16);
+    d.lt = ts;
+    const v = Math.hypot(dx, dy) / dt;                 // пикселей за мс
+    d.vs = d.vs * 0.5 + v * 0.5;                       // сглаживаем, чтобы не дёргалось
+    const k0 = d.touch ? [0.15, 1.3, 1.15, 2.4] : [0.35, 2.0, 1.0, 2.0];
+    const k = clamp((d.vs - k0[0]) / (k0[1] - k0[0]), 0, 1);
+    const gain = k0[2] + (k0[3] - k0[2]) * k * k * (3 - 2 * k);
+    const sh = d.p.sh;
+    d.px = clamp(d.px + dx * gain, sh.w * cell * 0.25, W - sh.w * cell * 0.25);
+    d.py = clamp(d.py + dy * gain, sh.h * cell * 0.25, H - sh.h * cell * 0.25);
+}
+function updateDrag() {
+    const d = drag, sh = d.p.sh, t = dragTarget(d);
+    const fx = (t.x - sh.w * cell / 2 - boardX) / cell, fy = (t.y - sh.h * cell / 2 - boardY) / cell;
+    let bestP = null, bd = 1e9;
+    for (const r of [Math.floor(fy), Math.ceil(fy)]) for (const c of [Math.floor(fx), Math.ceil(fx)]) {
+        if (!fits(grid, sh, r, c)) continue;
+        const dd = Math.hypot(r - fy, c - fx);
+        if (dd < bd) { bd = dd; bestP = { r, c }; }
+    }
+    if (!bestP || bd > 0.78) { d.snap = null; return; }
+    if (d.snap && d.snap.r === bestP.r && d.snap.c === bestP.c) return;
+    const res = applyPlacement(grid, sh, bestP.r, bestP.c, 1);
+    const set = new Set();
+    res.rows.forEach(r => { for (let j = 0; j < N; j++) set.add(r * N + j); });
+    res.cols.forEach(c => { for (let j = 0; j < N; j++) set.add(j * N + c); });
+    d.snap = { r: bestP.r, c: bestP.c, clearSet: set };
+}
+function drop(cancel) {
+    const d = drag;
+    drag = null;
+    canvas.style.cursor = '';
+    if (!cancel && d.snap) { place(d.i, d.snap.r, d.snap.c); return; }
+    const now = performance.now(), q = dragRender(d, now);
+    if (tray[d.i]) tray[d.i].anim = { type: 'back', t0: now, x: q.x, y: q.y, s: q.s };
+    sfx.back();
+}
+canvas.addEventListener('pointerdown', e => {
+    if (!active || drag || over || modalOpen) return;
+    const l = local(e);
+    const i = slotAt(l.x, l.y);
+    if (i < 0 || !tray[i]) return;
+    e.preventDefault();
+    try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+    const now = performance.now(), q = trayPos(i, now);
+    tray[i].anim = null;
+    const touch = e.pointerType !== 'mouse';
+    const lift = touch ? tray[i].sh.h * cell / 2 + cell * 0.9 : cell * 0.1;
+    drag = { i, p: tray[i], x: l.x, y: l.y, px: l.x, py: l.y - lift, lt: e.timeStamp, vs: 0,
+        fx: q.x, fy: q.y, fs: q.s, t0: now, touch, id: e.pointerId, snap: null };
+    canvas.style.cursor = 'grabbing';
+    sfx.pick(); hapt('light');
+    updateDrag();
+});
+canvas.addEventListener('pointermove', e => {
+    if (drag) {
+        if (e.pointerId !== drag.id) return;
+        const l = local(e);
+        moveDrag(l.x - drag.x, l.y - drag.y, e.timeStamp);
+        drag.x = l.x; drag.y = l.y;
+        updateDrag();
+        return;
+    }
+    if (e.pointerType === 'mouse') {
+        const l = local(e), i = slotAt(l.x, l.y);
+        canvas.style.cursor = active && !over && !modalOpen && i >= 0 && tray[i] ? 'grab' : '';
+    }
+});
+canvas.addEventListener('pointerup', e => { if (drag && e.pointerId === drag.id) drop(false); });
+canvas.addEventListener('pointercancel', e => { if (drag && e.pointerId === drag.id) drop(true); });
+window.addEventListener('blur', () => { if (drag) drop(true); });
+
+function renderSoundBtn() {
+    btnSound.innerHTML = muted ? ICON_MUTE : ICON_SOUND;
+    btnSound.setAttribute('aria-pressed', String(!muted));
+    btnSound.setAttribute('aria-label', muted ? 'Включить звук' : 'Выключить звук');
+}
+btnSound.addEventListener('click', () => {
+    muted = !muted; renderSoundBtn();
+    try { localStorage.setItem(MUTE_KEY, muted ? '1' : '0'); } catch (e) {}
+    if (!muted) sfx.pick();
+});
+btnExit.addEventListener('click', askExit);
+document.addEventListener('keydown', e => { if (active && e.key === 'Escape' && modalOpen) closeModal(); });
+document.addEventListener('visibilitychange', save);
+if (window.ResizeObserver) {
+    const ro = new ResizeObserver(() => { if (active) layout(); });
+    ro.observe(stage); ro.observe(hud);
+}
+window.addEventListener('resize', () => { if (active) layout(); });
+
+/* ================= связь с хабом ================= */
+function start(o) {
+    opts = Object.assign({ onScore() {}, onOver() {}, haptic() {} }, o || {});
+    best = Math.max(0, (opts.best | 0));
+    try { muted = localStorage.getItem(MUTE_KEY) === '1'; } catch (e) { muted = false; }
+    renderSoundBtn();
+    closeModal();
+    root.hidden = false;
+    active = true;
+    layout();
+    if (restore()) {
+        if (score > best) best = score;
+        bestAtStart = best;
+        bestEl.textContent = fmt(best);
+        updateFits();
+        shown = score; scoreEl.textContent = fmt(score);
+        updateHud();
+        toast('Продолжаем партию', 1600);
+        checkOver();
+    } else {
+        bestAtStart = best;
+        bestEl.textContent = fmt(best);
+        newGame();
+    }
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(t => { last = t; frame(t); });
+}
+function stop() {
+    save();
+    active = false;
+    cancelAnimationFrame(raf);
+    clearTimeout(overTimer);
+    if (drag) drag = null;
+    closeModal();
+    toastEl.classList.remove('bk-show');
+    root.hidden = true;
+}
+return { start, stop };
+})();
+</script>
 </body>
 </html>
-
